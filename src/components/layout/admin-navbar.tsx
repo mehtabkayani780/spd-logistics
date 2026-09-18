@@ -41,6 +41,12 @@ export function AdminNavbar({ onMenuClick, title = "Dashboard" }: AdminNavbarPro
   React.useEffect(() => {
     const fetchUser = async () => {
       try {
+        const storedUser = localStorage.getItem('spd_user');
+        if (storedUser) {
+          setCurrentUser(JSON.parse(storedUser));
+        }
+      } catch {}
+      try {
         const res = await fetch("/api/admin/profile");
         const data = await res.json();
         if (data.success && data.data) {

@@ -13,22 +13,33 @@ export async function GET() {
       );
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        avatar: true,
-        phone: true,
-        status: true,
-      },
-    });
+    let dbUser = null;
+    try {
+      dbUser = await prisma.user.findUnique({
+        where: { id: session.userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          avatar: true,
+          phone: true,
+          status: true,
+        },
+      });
+    } catch {
+      // Graceful fallback to session data
+    }
 
     return NextResponse.json({
       success: true,
-      data: dbUser || session,
+      data: dbUser || {
+        id: session.userId,
+        name: session.name,
+        email: session.email,
+        role: session.role,
+        status: 'ACTIVE',
+      },
     });
   } catch {
     return NextResponse.json(
