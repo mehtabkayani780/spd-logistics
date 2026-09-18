@@ -72,10 +72,22 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
     const fetchUser = async () => {
       try {
+        const storedUser = localStorage.getItem("spd_user");
+        const storedAvatar = localStorage.getItem("spd_admin_avatar");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (storedAvatar) parsed.avatar = storedAvatar;
+          setCurrentUser(parsed);
+        } else if (storedAvatar) {
+          setCurrentUser({ avatar: storedAvatar, name: "System Admin" });
+        }
+      } catch {}
+      try {
         const res = await fetch("/api/admin/profile");
         const data = await res.json();
         if (data.success && data.data) {
-          setCurrentUser(data.data);
+          const storedAvatar = localStorage.getItem("spd_admin_avatar");
+          setCurrentUser({ ...data.data, avatar: storedAvatar || data.data.avatar });
         }
       } catch {
         // Ignore fallback

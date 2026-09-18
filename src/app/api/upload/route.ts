@@ -112,30 +112,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Generate secure unique filename
+    // 5. Convert to Base64 data URL
+    const mimeType = file.type || 'image/jpeg';
+    const base64Data = buffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+    // 6. Generate secure unique filename
     const randomHash = crypto.randomBytes(8).toString('hex');
     const safeExt = ext === '.jpeg' ? '.jpg' : ext;
     const filename = `profile_${Date.now()}_${randomHash}${safeExt}`;
 
-    // 6. Ensure target directory exists in public/uploads/profiles
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles');
-    await fs.promises.mkdir(uploadDir, { recursive: true });
+    let publicUrl = dataUrl;
 
-    const filePath = path.join(uploadDir, filename);
-    await fs.promises.writeFile(filePath, buffer);
-
-    // Also sync to standalone directory if running standalone build
-    const standaloneDir = path.join(process.cwd(), '.next', 'standalone', 'public', 'uploads', 'profiles');
+    // 7. Try to write to disk if filesystem is writable (local dev), but gracefully fallback to Base64 on Netlify
     try {
-      if (fs.existsSync(path.join(process.cwd(), '.next', 'standalone'))) {
-        await fs.promises.mkdir(standaloneDir, { recursive: true });
-        await fs.promises.writeFile(path.join(standaloneDir, filename), buffer);
-      }
-    } catch {
-      // Ignore sync error if standalone dir is not present
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles');
+      await fs.promises.mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, filename);
+      await fs.promises.writeFile(filePath, buffer);
+      publicUrl = `/uploads/profiles/${filename}`;
+    } catch (fsErr: any) {
+      console.warn('Filesystem is read-only (Netlify/Vercel serverless). Falling back to Base64 data URL:', fsErr?.message);
+      publicUrl = dataUrl;
     }
-
-    const publicUrl = `/uploads/profiles/${filename}`;
 
     return NextResponse.json({
       success: true,
@@ -147,7 +146,7 @@ export async function POST(request: Request) {
     console.error('Error handling upload:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Server error occurred while uploading the file.' },
-      { status: 500 }
+      { status: 400 }
     );
   }
 }

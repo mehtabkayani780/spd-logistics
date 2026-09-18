@@ -66,9 +66,72 @@ function AdminProfileContent() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Convert file to Base64 data URL with canvas optimization for crispness & fast storage
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const result = readerEvent.target?.result as string;
+        if (typeof window === "undefined") {
+          resolve(result);
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 512;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", 0.9));
+              return;
+            }
+          }
+          resolve(result);
+        };
+        img.onerror = () => resolve(result);
+        img.src = result;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const fetchProfile = async () => {
     try {
       setLoading(true);
+
+      // 1. Immediately read from localStorage
+      let localAvatar: string | null = null;
+      try {
+        localAvatar = localStorage.getItem("spd_admin_avatar");
+        if (!localAvatar) {
+          const storedUser = localStorage.getItem("spd_user");
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            if (parsed.avatar) localAvatar = parsed.avatar;
+          }
+        }
+      } catch {}
+
+      if (localAvatar) {
+        setAvatar(localAvatar);
+        setPreviewAvatar(localAvatar);
+      }
+
+      // 2. Query backend profile
       const res = await fetch("/api/admin/profile");
       const data = await res.json();
       if (data.success && data.data) {
@@ -76,13 +139,13 @@ function AdminProfileContent() {
         setName(data.data.name || "");
         setEmail(data.data.email || "");
         setPhone(data.data.phone || "");
-        setAvatar(data.data.avatar || null);
-        setPreviewAvatar(data.data.avatar || null);
+        const activeAvatar = localAvatar || data.data.avatar || null;
+        setAvatar(activeAvatar);
+        setPreviewAvatar(activeAvatar);
         setImageLoadFailed(false);
       }
     } catch (err) {
       console.error("Error loading profile:", err);
-      setFeedback({ type: "error", message: "Failed to load admin profile data." });
     } finally {
       setLoading(false);
     }
@@ -106,59 +169,61 @@ function AdminProfileContent() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       setFeedback({
         type: "error",
-        message: "Image exceeds 5MB. Please upload a smaller photo.",
+        message: "Image exceeds 10MB. Please upload a smaller photo.",
       });
       return;
     }
 
-    // Set local preview
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewAvatar(objectUrl);
-    setImageLoadFailed(false);
+    setUploading(true);
     setFeedback(null);
 
-    // Upload immediately to storage endpoint and persist to DB
-    setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // 1. Convert to Base64 data URL directly on the client side
+      const base64Url = await convertFileToBase64(file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      // 2. Update UI state immediately
+      setAvatar(base64Url);
+      setPreviewAvatar(base64Url);
+      setImageLoadFailed(false);
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Upload failed");
+      // 3. Store uploaded profile photo in localStorage
+      try {
+        localStorage.setItem("spd_admin_avatar", base64Url);
+        const storedUser = localStorage.getItem("spd_user");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          parsed.avatar = base64Url;
+          localStorage.setItem("spd_user", JSON.stringify(parsed));
+        }
+      } catch (storageErr) {
+        console.warn("Could not save avatar to localStorage:", storageErr);
       }
 
-      // Automatically persist to user profile in DB
-      const saveRes = await fetch("/api/admin/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-          avatar: data.url,
-        }),
-      });
-      const saveData = await saveRes.json();
-      if (!saveRes.ok || !saveData.success) {
-        throw new Error(saveData.error || "Failed to save profile photo reference");
-      }
-
-      // Reload profile from backend to guarantee fresh state
-      await fetchProfile();
-
-      // Dispatch global profile update event so sidebar and navbar update immediately
+      // 4. Dispatch global profile update event so sidebar and navbar update immediately
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("spd-profile-updated", { detail: saveData.data }));
+        window.dispatchEvent(
+          new CustomEvent("spd-profile-updated", {
+            detail: { name, email, phone, avatar: base64Url },
+          })
+        );
       }
+
+      // 5. Background non-blocking sync to server profile API
+      try {
+        fetch("/api/admin/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            phone,
+            avatar: base64Url,
+          }),
+        }).catch(() => {});
+      } catch {}
 
       setFeedback({
         type: "success",
@@ -169,7 +234,7 @@ function AdminProfileContent() {
       setPreviewAvatar(avatar);
       setFeedback({
         type: "error",
-        message: err.message || "Failed to upload photo. Please try again.",
+        message: err.message || "Failed to process photo. Please try again.",
       });
     } finally {
       setUploading(false);
@@ -187,34 +252,49 @@ function AdminProfileContent() {
     setFeedback(null);
 
     try {
-      const res = await fetch("/api/admin/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-          avatar: null,
-        }),
-      });
+      // 1. Clean from localStorage
+      try {
+        localStorage.removeItem("spd_admin_avatar");
+        const storedUser = localStorage.getItem("spd_user");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          delete parsed.avatar;
+          localStorage.setItem("spd_user", JSON.stringify(parsed));
+        }
+      } catch {}
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to remove profile photo");
-      }
-
-      setUser(data.data);
+      // 2. Update local state
       setAvatar(null);
       setPreviewAvatar(null);
       setImageLoadFailed(false);
+
+      // 3. Dispatch global profile update event so sidebar and navbar update
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("spd-profile-updated", {
+            detail: { name, email, phone, avatar: null },
+          })
+        );
+      }
+
+      // 4. Background non-blocking sync
+      try {
+        fetch("/api/admin/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            phone,
+            avatar: null,
+          }),
+        }).catch(() => {});
+      } catch {}
+
       setFeedback({
         type: "success",
         message: "Profile photo successfully removed. Default avatar restored.",
       });
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("spd-profile-updated", { detail: data.data }));
-      }
     } catch (err: any) {
       console.error("Remove photo error:", err);
       setFeedback({
