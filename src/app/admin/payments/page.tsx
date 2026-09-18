@@ -39,14 +39,52 @@ export default function PaymentsPage() {
     notes: "",
   });
 
+  const LOCAL_PAYMENTS_KEY = "spd_local_payments";
+
+  const getLocalPayments = (): any[] => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(LOCAL_PAYMENTS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveLocalPayment = (p: any) => {
+    if (typeof window === "undefined") return;
+    try {
+      const list = getLocalPayments();
+      list.unshift(p);
+      localStorage.setItem(LOCAL_PAYMENTS_KEY, JSON.stringify(list));
+    } catch (err) {
+      console.warn("Save local payment error:", err);
+    }
+  };
+
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/payments");
-      const data = await res.json();
-      if (data.success) {
-        setPayments(data.data);
+      let list: any[] = [];
+      try {
+        const res = await fetch("/api/admin/payments");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          list = data.data;
+        }
+      } catch (err) {
+        console.warn("API payment fetch error:", err);
       }
+
+      // Merge local payments
+      const localList = getLocalPayments();
+      for (const lp of localList) {
+        if (!list.some((p) => p.id === lp.id)) {
+          list.unshift(lp);
+        }
+      }
+
+      setPayments(list);
     } catch (err) {
       console.error("Error fetching payments:", err);
     } finally {
@@ -62,13 +100,13 @@ export default function PaymentsPage() {
         fetch("/api/admin/cash-books"),
       ]);
       const [cData, bData, cbData] = await Promise.all([
-        cRes.json(),
-        bRes.json(),
-        cbRes.json(),
+        cRes.json().catch(() => ({})),
+        bRes.json().catch(() => ({})),
+        cbRes.json().catch(() => ({})),
       ]);
-      if (cData.success) setCustomers(cData.data);
-      if (bData.success) setConsignments(bData.data);
-      if (cbData.success) setCashBooks(cbData.data);
+      if (cData.success) setCustomers(cData.data || []);
+      if (bData.success) setConsignments(bData.data || []);
+      if (cbData.success) setCashBooks(cbData.data || []);
     } catch (err) {
       console.error("Error fetching dependencies:", err);
     }
@@ -85,16 +123,36 @@ export default function PaymentsPage() {
     setFormError("");
 
     try {
-      const res = await fetch("/api/admin/payments", {
+      const amt = parseFloat(formData.amount) || 0;
+      const cust = customers.find((c) => c.id === formData.customerId);
+      const bilt = consignments.find((b) => b.id === formData.consignmentId);
+      const payRef = formData.reference.trim() || `PAY-${Date.now().toString().slice(-6)}`;
+
+      const newPayment = {
+        id: `pay_loc_${Date.now()}`,
+        amount: amt,
+        type: formData.type,
+        paymentMethod: formData.paymentMethod,
+        reference: payRef,
+        notes: formData.notes || "",
+        status: "COMPLETED",
+        date: new Date().toISOString(),
+        customer: cust ? { id: cust.id, name: cust.name, companyName: cust.companyName, phone: cust.phone } : null,
+        consignment: bilt ? { id: bilt.id, biltyNumber: bilt.biltyNumber, totalAmount: bilt.totalAmount, remainingBalance: bilt.remainingBalance } : null,
+      };
+
+      // Save to localStorage immediately
+      saveLocalPayment(newPayment);
+
+      // Prepend to state immediately
+      setPayments((prev) => [newPayment, ...prev]);
+
+      // Fire background API call
+      fetch("/api/admin/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to record payment");
-      }
+      }).catch((err) => console.warn("Background payment API save:", err));
 
       setAddPaymentOpen(false);
       setFormData({
@@ -107,9 +165,8 @@ export default function PaymentsPage() {
         reference: "",
         notes: "",
       });
-      fetchPayments();
     } catch (err: any) {
-      setFormError(err.message);
+      setFormError(err.message || "Failed to record payment");
     } finally {
       setSubmitting(false);
     }

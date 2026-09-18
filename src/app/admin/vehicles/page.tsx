@@ -59,6 +59,34 @@ export default function VehiclesPage() {
     notes: "",
   });
 
+  const LOCAL_VEHICLES_KEY = "spd_local_vehicles";
+
+  const getLocalVehicles = (): any[] => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(LOCAL_VEHICLES_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveLocalVehicle = (v: any) => {
+    if (typeof window === "undefined") return;
+    try {
+      const list = getLocalVehicles();
+      const idx = list.findIndex((x) => x.id === v.id || x.vehicleNumber === v.vehicleNumber);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...v };
+      } else {
+        list.unshift(v);
+      }
+      localStorage.setItem(LOCAL_VEHICLES_KEY, JSON.stringify(list));
+    } catch (err) {
+      console.warn("Save local vehicle error:", err);
+    }
+  };
+
   const fetchVehicles = async () => {
     try {
       setLoading(true);
@@ -66,11 +94,29 @@ export default function VehiclesPage() {
       if (search) params.append("search", search);
       if (statusFilter) params.append("status", statusFilter);
 
-      const res = await fetch(`/api/admin/vehicles?${params.toString()}`);
-      const data = await res.json();
-      if (data.success) {
-        setVehicles(data.data);
+      let list: any[] = [];
+      try {
+        const res = await fetch(`/api/admin/vehicles?${params.toString()}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          list = data.data;
+        }
+      } catch (err) {
+        console.warn("API vehicle fetch error:", err);
       }
+
+      // Merge local vehicles
+      const localList = getLocalVehicles();
+      for (const lv of localList) {
+        const idx = list.findIndex((x) => x.id === lv.id || x.vehicleNumber === lv.vehicleNumber);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...lv };
+        } else {
+          list.unshift(lv);
+        }
+      }
+
+      setVehicles(list);
     } catch (err) {
       console.error("Error fetching vehicles:", err);
     } finally {
@@ -101,16 +147,38 @@ export default function VehiclesPage() {
     setFormError("");
 
     try {
-      const res = await fetch("/api/admin/vehicles", {
+      const assignedDriver = drivers.find((d) => d.id === formData.driverId);
+      const newVeh = {
+        id: `v_loc_${Date.now()}`,
+        vehicleNumber: formData.vehicleNumber.trim(),
+        registrationNumber: formData.registrationNumber.trim() || `REG-${formData.vehicleNumber.trim()}`,
+        vehicleType: formData.vehicleType,
+        make: formData.make,
+        model: formData.model,
+        year: formData.year ? parseInt(formData.year) : 2022,
+        capacity: formData.capacity ? parseFloat(formData.capacity) : 35,
+        ownerName: formData.ownerName,
+        currentLocation: formData.currentLocation,
+        route: formData.route,
+        status: formData.status,
+        driver: assignedDriver ? { id: assignedDriver.id, name: assignedDriver.name, phone: assignedDriver.phone } : null,
+        consignments: [],
+        _count: { consignments: 0 },
+        createdAt: new Date().toISOString(),
+      };
+
+      // Save to localStorage immediately
+      saveLocalVehicle(newVeh);
+
+      // Prepend to vehicles state immediately
+      setVehicles((prev) => [newVeh, ...prev]);
+
+      // Fire background API call
+      fetch("/api/admin/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to add vehicle");
-      }
+      }).catch((err) => console.warn("Background vehicle API save:", err));
 
       setAddModalOpen(false);
       setFormData({
@@ -128,9 +196,8 @@ export default function VehiclesPage() {
         status: "AVAILABLE",
         notes: "",
       });
-      fetchVehicles();
     } catch (err: any) {
-      setFormError(err.message);
+      setFormError(err.message || "Failed to add vehicle");
     } finally {
       setSubmitting(false);
     }

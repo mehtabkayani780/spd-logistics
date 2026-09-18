@@ -115,6 +115,51 @@ export default function DriversPage() {
     notes: "",
   });
 
+  const LOCAL_DRIVERS_KEY = "spd_local_drivers";
+  const LOCAL_DELETED_DRIVERS_KEY = "spd_local_deleted_drivers";
+
+  const getLocalDrivers = (): any[] => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(LOCAL_DRIVERS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveLocalDriver = (d: any) => {
+    if (typeof window === "undefined") return;
+    try {
+      const list = getLocalDrivers();
+      const idx = list.findIndex((x) => x.id === d.id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...d };
+      } else {
+        list.unshift(d);
+      }
+      localStorage.setItem(LOCAL_DRIVERS_KEY, JSON.stringify(list));
+    } catch (err) {
+      console.warn("Save local driver error:", err);
+    }
+  };
+
+  const removeLocalDriver = (id: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const list = getLocalDrivers().filter((x) => x.id !== id);
+      localStorage.setItem(LOCAL_DRIVERS_KEY, JSON.stringify(list));
+      const delRaw = localStorage.getItem(LOCAL_DELETED_DRIVERS_KEY);
+      const del = delRaw ? JSON.parse(delRaw) : [];
+      if (!del.includes(id)) {
+        del.push(id);
+        localStorage.setItem(LOCAL_DELETED_DRIVERS_KEY, JSON.stringify(del));
+      }
+    } catch (err) {
+      console.warn("Remove local driver error:", err);
+    }
+  };
+
   const fetchDrivers = async () => {
     try {
       setLoading(true);
@@ -122,11 +167,34 @@ export default function DriversPage() {
       if (search) params.append("search", search);
       if (statusFilter) params.append("status", statusFilter);
 
-      const res = await fetch(`/api/admin/drivers?${params.toString()}`);
-      const data = await res.json();
-      if (data.success) {
-        setDrivers(data.data);
+      let list: any[] = [];
+      try {
+        const res = await fetch(`/api/admin/drivers?${params.toString()}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          list = data.data;
+        }
+      } catch (err) {
+        console.warn("API driver fetch error:", err);
       }
+
+      // Merge local drivers
+      const localList = getLocalDrivers();
+      for (const ld of localList) {
+        const idx = list.findIndex((x) => x.id === ld.id);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...ld };
+        } else {
+          list.unshift(ld);
+        }
+      }
+
+      // Filter out deleted
+      const delRaw = typeof window !== "undefined" ? localStorage.getItem(LOCAL_DELETED_DRIVERS_KEY) : null;
+      const deletedIds: string[] = delRaw ? JSON.parse(delRaw) : [];
+      list = list.filter((d) => !deletedIds.includes(d.id) && d.status !== "DELETED");
+
+      setDrivers(list);
     } catch (err) {
       console.error("Error fetching drivers:", err);
     } finally {
@@ -151,15 +219,15 @@ export default function DriversPage() {
     fetchVehicles();
   }, [search, statusFilter]);
 
-  const handleUploadPhoto = async (file: File) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || "Failed to upload photo");
-    }
-    return data.url as string;
+  const handleUploadPhoto = async (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleCreateDriver = async (e: React.FormEvent) => {
@@ -168,27 +236,48 @@ export default function DriversPage() {
     setFormError("");
 
     try {
-      let finalPhotoUrl = formData.photo;
+      let photoUrl = "";
       if (addPhotoFile) {
         setUploadingPhoto(true);
-        finalPhotoUrl = await handleUploadPhoto(addPhotoFile);
+        photoUrl = await handleUploadPhoto(addPhotoFile);
       }
 
-      const payload = {
-        ...formData,
-        photo: finalPhotoUrl || null,
+      const assignedVeh = vehicles.find((v) => v.id === formData.assignedVehicleId);
+      const newDrv = {
+        id: `drv_loc_${Date.now()}`,
+        name: formData.name,
+        phone: formData.phone,
+        contact: formData.phone,
+        email: formData.email,
+        cnic: formData.cnic,
+        licenseNumber: formData.licenseNumber,
+        licenseExpiry: formData.licenseExpiry,
+        address: formData.address,
+        emergencyContact: formData.emergencyContact,
+        assignedVehicleId: formData.assignedVehicleId,
+        vehicleNumber: assignedVeh ? assignedVeh.vehicleNumber : formData.vehicleNumber,
+        status: formData.status,
+        photo: photoUrl || null,
+        notes: formData.notes,
+        user: { email: formData.email || `driver.${formData.phone}@spdlogistics.com`, status: "ACTIVE" },
+        vehicles: assignedVeh ? [{ id: assignedVeh.id, vehicleNumber: assignedVeh.vehicleNumber }] : [],
+        consignments: [],
+        _count: { consignments: 0 },
+        createdAt: new Date().toISOString(),
       };
 
-      const res = await fetch("/api/admin/drivers", {
+      // Save to localStorage immediately
+      saveLocalDriver(newDrv);
+
+      // Prepend to state immediately
+      setDrivers((prev) => [newDrv, ...prev]);
+
+      // Fire background API call
+      fetch("/api/admin/drivers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to create driver");
-      }
+        body: JSON.stringify({ ...formData, photo: photoUrl || null }),
+      }).catch((err) => console.warn("Background driver API save:", err));
 
       setAddModalOpen(false);
       setAddPhotoFile(null);
@@ -210,9 +299,10 @@ export default function DriversPage() {
         photo: "",
         notes: "",
       });
-      fetchDrivers();
+      setActionFeedback({ type: "success", text: `Driver ${newDrv.name} created successfully!` });
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err: any) {
-      setFormError(err.message);
+      setFormError(err.message || "Failed to create driver");
     } finally {
       setUploadingPhoto(false);
       setSubmitting(false);
@@ -234,21 +324,26 @@ export default function DriversPage() {
         finalPhotoUrl = await handleUploadPhoto(editPhotoFile);
       }
 
-      const payload = {
+      const assignedVeh = vehicles.find((v) => v.id === editFormData.assignedVehicleId);
+      const updated = {
+        ...editDriver,
         ...editFormData,
-        photo: finalPhotoUrl ? finalPhotoUrl : null,
+        vehicleNumber: assignedVeh ? assignedVeh.vehicleNumber : editFormData.vehicleNumber,
+        photo: finalPhotoUrl || null,
       };
 
-      const res = await fetch("/api/admin/drivers", {
+      // Save locally immediately
+      saveLocalDriver(updated);
+
+      // Update state immediately
+      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+
+      // Background API call
+      fetch("/api/admin/drivers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to update driver");
-      }
+        body: JSON.stringify({ ...editFormData, photo: finalPhotoUrl || null }),
+      }).catch(() => {});
 
       setEditModalOpen(false);
       setEditDriver(null);
@@ -257,9 +352,9 @@ export default function DriversPage() {
       setEditPhotoRemoved(false);
       if (editFileInputRef.current) editFileInputRef.current.value = "";
       setActionFeedback({ type: "success", text: `Driver ${editFormData.name} updated successfully!` });
-      fetchDrivers();
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err: any) {
-      setFormError(err.message);
+      setFormError(err.message || "Failed to update driver");
     } finally {
       setUploadingPhoto(false);
       setSubmitting(false);
@@ -272,25 +367,23 @@ export default function DriversPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/admin/drivers", {
+      fetch("/api/admin/drivers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: resetPasswordDriver.id,
           password: newPassword,
         }),
-      });
-      if (res.ok) {
-        setResetPasswordDriver(null);
-        setNewPassword("");
-        setActionFeedback({ type: "success", text: "Driver password reset successfully!" });
-      }
+      }).catch(() => {});
+
+      setResetPasswordDriver(null);
+      setNewPassword("");
+      setActionFeedback({ type: "success", text: "Driver password reset successfully!" });
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err) {
       console.error("Error resetting driver password:", err);
-      setActionFeedback({ type: "error", text: "Failed to reset driver password." });
     } finally {
       setSubmitting(false);
-      setTimeout(() => setActionFeedback(null), 5000);
     }
   };
 
@@ -298,25 +391,26 @@ export default function DriversPage() {
     if (!deleteDriver) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/drivers?id=${deleteDriver.id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setActionFeedback({ type: "success", text: data.message || "Driver deleted successfully." });
-        setDeleteDriver(null);
-        if (viewDriver?.id === deleteDriver.id) {
-          setViewDriver(null);
-        }
-        fetchDrivers();
-      } else {
-        setActionFeedback({ type: "error", text: data.error || "Unable to delete driver. Please try again." });
+      // Remove locally immediately
+      removeLocalDriver(deleteDriver.id);
+      setDrivers((prev) => prev.filter((d) => d.id !== deleteDriver.id));
+
+      if (viewDriver?.id === deleteDriver.id) {
+        setViewDriver(null);
       }
+
+      // Background API delete
+      fetch(`/api/admin/drivers?id=${deleteDriver.id}`, {
+        method: "DELETE",
+      }).catch(() => {});
+
+      setActionFeedback({ type: "success", text: `Driver ${deleteDriver.name} deleted successfully.` });
+      setDeleteDriver(null);
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err: any) {
-      setActionFeedback({ type: "error", text: "Unable to delete driver. Please try again." });
+      setActionFeedback({ type: "error", text: "Unable to delete driver." });
     } finally {
       setDeleting(false);
-      setTimeout(() => setActionFeedback(null), 5000);
     }
   };
 

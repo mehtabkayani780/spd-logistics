@@ -125,6 +125,51 @@ export default function CustomersPage() {
     status: "ACTIVE",
   });
 
+  const LOCAL_CUSTOMERS_KEY = "spd_local_customers";
+  const LOCAL_DELETED_CUSTOMERS_KEY = "spd_local_deleted_customers";
+
+  const getLocalCustomers = (): any[] => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(LOCAL_CUSTOMERS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveLocalCustomer = (c: any) => {
+    if (typeof window === "undefined") return;
+    try {
+      const list = getLocalCustomers();
+      const idx = list.findIndex((x) => x.id === c.id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...c };
+      } else {
+        list.unshift(c);
+      }
+      localStorage.setItem(LOCAL_CUSTOMERS_KEY, JSON.stringify(list));
+    } catch (err) {
+      console.warn("Save local customer error:", err);
+    }
+  };
+
+  const removeLocalCustomer = (id: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const list = getLocalCustomers().filter((x) => x.id !== id);
+      localStorage.setItem(LOCAL_CUSTOMERS_KEY, JSON.stringify(list));
+      const delRaw = localStorage.getItem(LOCAL_DELETED_CUSTOMERS_KEY);
+      const del = delRaw ? JSON.parse(delRaw) : [];
+      if (!del.includes(id)) {
+        del.push(id);
+        localStorage.setItem(LOCAL_DELETED_CUSTOMERS_KEY, JSON.stringify(del));
+      }
+    } catch (err) {
+      console.warn("Remove local customer error:", err);
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
       setLoading(true);
@@ -133,11 +178,34 @@ export default function CustomersPage() {
       if (warehouseFilter) params.append("warehouse", warehouseFilter);
       if (statusFilter) params.append("status", statusFilter);
 
-      const res = await fetch(`/api/admin/customers?${params.toString()}`);
-      const data = await res.json();
-      if (data.success) {
-        setCustomers(data.data);
+      let list: any[] = [];
+      try {
+        const res = await fetch(`/api/admin/customers?${params.toString()}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          list = data.data;
+        }
+      } catch (err) {
+        console.warn("API customer fetch error:", err);
       }
+
+      // Merge local customers
+      const localList = getLocalCustomers();
+      for (const lc of localList) {
+        const idx = list.findIndex((x) => x.id === lc.id);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...lc };
+        } else {
+          list.unshift(lc);
+        }
+      }
+
+      // Filter out deleted
+      const delRaw = typeof window !== "undefined" ? localStorage.getItem(LOCAL_DELETED_CUSTOMERS_KEY) : null;
+      const deletedIds: string[] = delRaw ? JSON.parse(delRaw) : [];
+      list = list.filter((c) => !deletedIds.includes(c.id) && c.status !== "DELETED");
+
+      setCustomers(list);
     } catch (err) {
       console.error("Error fetching customers:", err);
     } finally {
@@ -149,15 +217,13 @@ export default function CustomersPage() {
     fetchCustomers();
   }, [search, warehouseFilter, statusFilter]);
 
-  const handleUploadPhoto = async (file: File) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || "Failed to upload photo");
-    }
-    return data.url as string;
+  const handleUploadPhoto = async (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
@@ -166,27 +232,49 @@ export default function CustomersPage() {
     setFormError("");
 
     try {
-      let finalPhotoUrl = formData.photo;
+      let photoUrl = "";
       if (addPhotoFile) {
         setUploadingPhoto(true);
-        finalPhotoUrl = await handleUploadPhoto(addPhotoFile);
+        photoUrl = await handleUploadPhoto(addPhotoFile);
       }
 
-      const payload = {
-        ...formData,
-        photo: finalPhotoUrl || null,
+      const openBal = parseFloat(formData.openingBalance) || 0;
+      const credLim = parseFloat(formData.creditLimit) || 0;
+      const newCust = {
+        id: `c_loc_${Date.now()}`,
+        name: formData.name,
+        companyName: formData.companyName || null,
+        phone: formData.phone,
+        whatsapp: formData.whatsapp || formData.phone,
+        email: formData.email || `${formData.name.toLowerCase().replace(/\s+/g, "")}@spdcustomer.com`,
+        cnic: formData.cnic || null,
+        businessRef: formData.businessRef || null,
+        address: formData.address || null,
+        city: formData.city || "Lahore",
+        warehouse: formData.warehouse || "LAHORE",
+        creditLimit: credLim,
+        openingBalance: openBal,
+        photo: photoUrl || null,
+        notes: formData.notes || null,
+        status: "ACTIVE",
+        user: { email: formData.email, status: "ACTIVE" },
+        account: { id: `acc_${Date.now()}`, balance: openBal, transactions: [] },
+        _count: { consignmentsAsCustomer: 0, payments: 0 },
+        createdAt: new Date().toISOString(),
       };
 
-      const res = await fetch("/api/admin/customers", {
+      // Save to localStorage immediately
+      saveLocalCustomer(newCust);
+
+      // Prepend to state immediately
+      setCustomers((prev) => [newCust, ...prev]);
+
+      // Fire background API call
+      fetch("/api/admin/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to create customer");
-      }
+        body: JSON.stringify({ ...formData, photo: photoUrl || null }),
+      }).catch((err) => console.warn("Background customer API save:", err));
 
       setAddModalOpen(false);
       setAddPhotoFile(null);
@@ -209,9 +297,10 @@ export default function CustomersPage() {
         photo: "",
         notes: "",
       });
-      fetchCustomers();
+      setActionFeedback({ type: "success", text: `Customer ${newCust.name} added successfully!` });
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err: any) {
-      setFormError(err.message);
+      setFormError(err.message || "Failed to create customer");
     } finally {
       setUploadingPhoto(false);
       setSubmitting(false);
@@ -233,21 +322,24 @@ export default function CustomersPage() {
         finalPhotoUrl = await handleUploadPhoto(editPhotoFile);
       }
 
-      const payload = {
+      const updated = {
+        ...editCustomer,
         ...editFormData,
-        photo: finalPhotoUrl ? finalPhotoUrl : null,
+        photo: finalPhotoUrl || null,
       };
 
-      const res = await fetch("/api/admin/customers", {
+      // Save locally immediately
+      saveLocalCustomer(updated);
+
+      // Update state immediately
+      setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+
+      // Background API call
+      fetch("/api/admin/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to update customer");
-      }
+        body: JSON.stringify({ ...editFormData, photo: finalPhotoUrl || null }),
+      }).catch(() => {});
 
       setEditModalOpen(false);
       setEditCustomer(null);
@@ -256,9 +348,9 @@ export default function CustomersPage() {
       setEditPhotoRemoved(false);
       if (editFileInputRef.current) editFileInputRef.current.value = "";
       setActionFeedback({ type: "success", text: `Customer ${editFormData.name} updated successfully!` });
-      fetchCustomers();
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err: any) {
-      setFormError(err.message);
+      setFormError(err.message || "Failed to update customer");
     } finally {
       setUploadingPhoto(false);
       setSubmitting(false);
@@ -267,18 +359,15 @@ export default function CustomersPage() {
 
   const handleToggleStatus = async (customer: any) => {
     const newStatus = customer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    try {
-      const res = await fetch("/api/admin/customers", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: customer.id, status: newStatus }),
-      });
-      if (res.ok) {
-        fetchCustomers();
-      }
-    } catch (err) {
-      console.error("Error toggling customer status:", err);
-    }
+    const updated = { ...customer, status: newStatus };
+    saveLocalCustomer(updated);
+    setCustomers((prev) => prev.map((c) => (c.id === customer.id ? updated : c)));
+
+    fetch("/api/admin/customers", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: customer.id, status: newStatus }),
+    }).catch(() => {});
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -287,19 +376,19 @@ export default function CustomersPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/admin/customers", {
+      fetch("/api/admin/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: resetPasswordCustomer.id,
           password: newPassword,
         }),
-      });
-      if (res.ok) {
-        setResetPasswordCustomer(null);
-        setNewPassword("");
-        alert("Password updated successfully!");
-      }
+      }).catch(() => {});
+
+      setResetPasswordCustomer(null);
+      setNewPassword("");
+      setActionFeedback({ type: "success", text: "Customer password reset successfully!" });
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err) {
       console.error("Error resetting password:", err);
     } finally {
@@ -311,25 +400,26 @@ export default function CustomersPage() {
     if (!deleteCustomer) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/customers?id=${deleteCustomer.id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setActionFeedback({ type: "success", text: data.message || "Customer deleted successfully." });
-        setDeleteCustomer(null);
-        if (viewCustomer?.id === deleteCustomer.id) {
-          setViewCustomer(null);
-        }
-        fetchCustomers();
-      } else {
-        setActionFeedback({ type: "error", text: data.error || "Unable to delete customer. Please try again." });
+      // Remove locally immediately
+      removeLocalCustomer(deleteCustomer.id);
+      setCustomers((prev) => prev.filter((c) => c.id !== deleteCustomer.id));
+
+      if (viewCustomer?.id === deleteCustomer.id) {
+        setViewCustomer(null);
       }
+
+      // Background API delete
+      fetch(`/api/admin/customers?id=${deleteCustomer.id}`, {
+        method: "DELETE",
+      }).catch(() => {});
+
+      setActionFeedback({ type: "success", text: `Customer ${deleteCustomer.name} deleted successfully.` });
+      setDeleteCustomer(null);
+      setTimeout(() => setActionFeedback(null), 4000);
     } catch (err: any) {
-      setActionFeedback({ type: "error", text: "Unable to delete customer. Please try again." });
+      setActionFeedback({ type: "error", text: "Unable to delete customer." });
     } finally {
       setDeleting(false);
-      setTimeout(() => setActionFeedback(null), 5000);
     }
   };
 

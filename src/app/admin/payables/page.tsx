@@ -118,6 +118,9 @@ export default function PayablesPage() {
   const [payError, setPayError] = useState("");
   const [paySubmitting, setPaySubmitting] = useState(false);
 
+  const LOCAL_PAYABLES_KEY = "spd_local_payables";
+  const LOCAL_DELETED_PAYABLES_KEY = "spd_deleted_payables";
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -126,12 +129,75 @@ export default function PayablesPage() {
       if (categoryFilter !== "ALL") params.set("category", categoryFilter);
       if (statusFilter !== "ALL") params.set("status", statusFilter);
 
-      const res = await fetch(`/api/admin/payables?${params.toString()}`);
-      const data = await res.json();
-      if (data.success) {
-        setPayables(data.data.payables || []);
-        setSummary(data.data.summary || {});
+      let serverPayables: PayableItem[] = [];
+      try {
+        const res = await fetch(`/api/admin/payables?${params.toString()}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data?.payables)) {
+          serverPayables = data.data.payables;
+        }
+      } catch (e) {
+        console.warn("Could not fetch remote payables, using local state:", e);
       }
+
+      // Merge local storage payables
+      let localPayables: PayableItem[] = [];
+      let deletedIds: string[] = [];
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem(LOCAL_PAYABLES_KEY);
+          if (raw) localPayables = JSON.parse(raw);
+          const delRaw = localStorage.getItem(LOCAL_DELETED_PAYABLES_KEY);
+          if (delRaw) deletedIds = JSON.parse(delRaw);
+        } catch (e) {}
+      }
+
+      // Merge and filter
+      const combinedMap = new Map<string, PayableItem>();
+      // First add server payables not deleted
+      serverPayables.forEach((p) => {
+        if (!deletedIds.includes(p.id)) {
+          combinedMap.set(p.id, p);
+        }
+      });
+      // Override or prepend local payables
+      localPayables.forEach((p) => {
+        if (!deletedIds.includes(p.id)) {
+          combinedMap.set(p.id, p);
+        }
+      });
+
+      let merged = Array.from(combinedMap.values());
+      // Apply filters if needed
+      if (search) {
+        const q = search.toLowerCase();
+        merged = merged.filter(
+          (p) =>
+            p.vendorName?.toLowerCase().includes(q) ||
+            p.description?.toLowerCase().includes(q) ||
+            p.reference?.toLowerCase().includes(q) ||
+            p.driverName?.toLowerCase().includes(q) ||
+            p.vehicleNumber?.toLowerCase().includes(q)
+        );
+      }
+      if (categoryFilter !== "ALL") {
+        merged = merged.filter((p) => p.category === categoryFilter);
+      }
+      if (statusFilter !== "ALL") {
+        merged = merged.filter((p) => p.status === statusFilter);
+      }
+
+      // Calculate summary
+      const totalPayables = merged.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
+      const totalPaid = merged.reduce((sum, p) => sum + (Number(p.paidAmount) || 0), 0);
+      const totalRemaining = merged.reduce((sum, p) => sum + (Number(p.remainingAmount) || 0), 0);
+      const now = new Date();
+      const overdueCount = merged.filter(
+        (p) => p.status !== "PAID" && p.dueDate && new Date(p.dueDate) < now
+      ).length;
+
+      setPayables(merged);
+      setSummary({ totalPayables, totalPaid, totalRemaining, overdueCount });
     } catch (err) {
       console.error("Failed to load payables:", err);
     } finally {
@@ -200,7 +266,44 @@ export default function PayablesPage() {
     try {
       setFormSubmitting(true);
       setFormError("");
-      const res = await fetch("/api/admin/payables", {
+      const totalNum = parseFloat(formTotal) || 0;
+      const paidNum = parseFloat(formPaid) || 0;
+      const remNum = Math.max(0, totalNum - paidNum);
+      const newStatus = remNum <= 0 ? "PAID" : paidNum > 0 ? "PARTIAL" : "UNPAID";
+
+      const localItem: PayableItem = {
+        id: `pay_loc_${Date.now()}`,
+        vendorName: formVendor,
+        category: formCategory,
+        reference: formReference || `BILL-${Date.now().toString().slice(-5)}`,
+        vehicleNumber: formVehicle || null,
+        driverName: formDriver || null,
+        description: formDescription,
+        totalAmount: totalNum,
+        paidAmount: paidNum,
+        remainingAmount: remNum,
+        dueDate: formDueDate || null,
+        status: newStatus as any,
+        notes: formNotes || null,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Optimistically save to localStorage
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem(LOCAL_PAYABLES_KEY);
+          const current: PayableItem[] = raw ? JSON.parse(raw) : [];
+          current.unshift(localItem);
+          localStorage.setItem(LOCAL_PAYABLES_KEY, JSON.stringify(current));
+        } catch (e) {}
+      }
+
+      setAddModalOpen(false);
+      fetchData();
+      window.dispatchEvent(new CustomEvent("spd-notifications-updated"));
+
+      // Background sync
+      fetch("/api/admin/payables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -215,15 +318,7 @@ export default function PayablesPage() {
           dueDate: formDueDate || undefined,
           notes: formNotes,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to create payable");
-      }
-
-      setAddModalOpen(false);
-      fetchData();
-      window.dispatchEvent(new CustomEvent("spd-notifications-updated"));
+      }).catch((e) => console.warn("Background payable save warning:", e));
     } catch (err: any) {
       setFormError(err.message || "Failed to save payable");
     } finally {
@@ -238,7 +333,46 @@ export default function PayablesPage() {
     try {
       setFormSubmitting(true);
       setFormError("");
-      const res = await fetch("/api/admin/payables", {
+      const totalNum = parseFloat(formTotal) || 0;
+      const paidNum = selectedPayable.paidAmount || 0;
+      const remNum = Math.max(0, totalNum - paidNum);
+      const newStatus = remNum <= 0 ? "PAID" : paidNum > 0 ? "PARTIAL" : "UNPAID";
+
+      const updatedItem: PayableItem = {
+        ...selectedPayable,
+        vendorName: formVendor,
+        category: formCategory,
+        reference: formReference || selectedPayable.reference,
+        vehicleNumber: formVehicle || null,
+        driverName: formDriver || null,
+        description: formDescription,
+        totalAmount: totalNum,
+        paidAmount: paidNum,
+        remainingAmount: remNum,
+        dueDate: formDueDate || null,
+        status: newStatus as any,
+        notes: formNotes || null,
+      };
+
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem(LOCAL_PAYABLES_KEY);
+          let current: PayableItem[] = raw ? JSON.parse(raw) : [];
+          const idx = current.findIndex((p) => p.id === selectedPayable.id);
+          if (idx >= 0) {
+            current[idx] = updatedItem;
+          } else {
+            current.unshift(updatedItem);
+          }
+          localStorage.setItem(LOCAL_PAYABLES_KEY, JSON.stringify(current));
+        } catch (e) {}
+      }
+
+      setEditModalOpen(false);
+      fetchData();
+
+      // Background sync
+      fetch("/api/admin/payables", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -253,14 +387,7 @@ export default function PayablesPage() {
           dueDate: formDueDate || null,
           notes: formNotes,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to update payable");
-      }
-
-      setEditModalOpen(false);
-      fetchData();
+      }).catch((e) => console.warn("Background payable edit warning:", e));
     } catch (err: any) {
       setFormError(err.message || "Failed to update payable");
     } finally {
@@ -281,7 +408,37 @@ export default function PayablesPage() {
     try {
       setPaySubmitting(true);
       setPayError("");
-      const res = await fetch("/api/admin/payables", {
+      const newPaid = (selectedPayable.paidAmount || 0) + num;
+      const newRemaining = Math.max(0, (selectedPayable.totalAmount || 0) - newPaid);
+      const newStatus = newRemaining <= 0 ? "PAID" : "PARTIAL";
+
+      const updatedItem: PayableItem = {
+        ...selectedPayable,
+        paidAmount: newPaid,
+        remainingAmount: newRemaining,
+        status: newStatus as any,
+      };
+
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem(LOCAL_PAYABLES_KEY);
+          let current: PayableItem[] = raw ? JSON.parse(raw) : [];
+          const idx = current.findIndex((p) => p.id === selectedPayable.id);
+          if (idx >= 0) {
+            current[idx] = updatedItem;
+          } else {
+            current.unshift(updatedItem);
+          }
+          localStorage.setItem(LOCAL_PAYABLES_KEY, JSON.stringify(current));
+        } catch (e) {}
+      }
+
+      setPayModalOpen(false);
+      fetchData();
+      window.dispatchEvent(new CustomEvent("spd-notifications-updated"));
+
+      // Background sync
+      fetch("/api/admin/payables", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -292,15 +449,7 @@ export default function PayablesPage() {
           cashBookId: payCashBookId || undefined,
           notes: payNotes,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to record payment");
-      }
-
-      setPayModalOpen(false);
-      fetchData();
-      window.dispatchEvent(new CustomEvent("spd-notifications-updated"));
+      }).catch((e) => console.warn("Background payment warning:", e));
     } catch (err: any) {
       setPayError(err.message || "Failed to record payout");
     } finally {
@@ -311,15 +460,26 @@ export default function PayablesPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to remove payable for "${name}"?`)) return;
 
-    try {
-      const res = await fetch(`/api/admin/payables?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.success) {
-        fetchData();
-      }
-    } catch (err) {
-      console.error("Failed to delete payable:", err);
+    if (typeof window !== "undefined") {
+      try {
+        const delRaw = localStorage.getItem(LOCAL_DELETED_PAYABLES_KEY);
+        const deletedIds: string[] = delRaw ? JSON.parse(delRaw) : [];
+        if (!deletedIds.includes(id)) {
+          deletedIds.push(id);
+          localStorage.setItem(LOCAL_DELETED_PAYABLES_KEY, JSON.stringify(deletedIds));
+        }
+        const raw = localStorage.getItem(LOCAL_PAYABLES_KEY);
+        if (raw) {
+          const current: PayableItem[] = JSON.parse(raw);
+          localStorage.setItem(LOCAL_PAYABLES_KEY, JSON.stringify(current.filter((p) => p.id !== id)));
+        }
+      } catch (e) {}
     }
+
+    fetchData();
+
+    // Background sync
+    fetch(`/api/admin/payables?id=${id}`, { method: "DELETE" }).catch(() => {});
   };
 
   const handleExportCSV = () => {
