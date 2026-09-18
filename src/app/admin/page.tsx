@@ -23,67 +23,86 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  const [
-    customers,
-    consignments,
-    vehicles,
-    drivers,
-    payments,
-    cashBooks,
-    pendingDeliveries,
-    deliveredCount,
-    lahoreBiltyCount,
-    karachiBiltyCount,
-    allConsignments,
-    recentConsignments,
-    recentActivity,
-  ] = await Promise.all([
-    prisma.customer.count(),
-    prisma.consignment.count({ where: { shipmentStatus: { not: "DELETED" } } }),
-    prisma.vehicle.count(),
-    prisma.driver.count(),
-    prisma.payment.count(),
-    prisma.cashBook.count(),
-    prisma.consignment.count({
-      where: {
-        NOT: [{ shipmentStatus: "DELIVERED" }, { shipmentStatus: "CANCELLED" }, { shipmentStatus: "DELETED" }],
-      },
-    }),
-    prisma.consignment.count({
-      where: { shipmentStatus: "DELIVERED" },
-    }),
-    prisma.consignment.count({
-      where: { warehouse: { contains: "LAHORE" }, shipmentStatus: { not: "DELETED" } },
-    }),
-    prisma.consignment.count({
-      where: { warehouse: { contains: "KARACHI" }, shipmentStatus: { not: "DELETED" } },
-    }),
-    prisma.consignment.findMany({
-      where: { shipmentStatus: { not: "DELETED" } },
-      select: {
-        totalAmount: true,
-        paidAmount: true,
-        remainingBalance: true,
-      },
-    }),
-    prisma.consignment.findMany({
-      where: { shipmentStatus: { not: "DELETED" } },
-      take: 6,
-      orderBy: { date: "desc" },
-      include: {
-        customer: { select: { name: true, companyName: true } },
-      },
-    }),
-    prisma.auditLog.findMany({
-      take: 6,
-      orderBy: { createdAt: "desc" },
-      include: { user: true },
-    }),
-  ]);
+  let customers = 0;
+  let consignments = 0;
+  let vehicles = 0;
+  let drivers = 0;
+  let payments = 0;
+  let cashBooks = 0;
+  let pendingDeliveries = 0;
+  let deliveredCount = 0;
+  let lahoreBiltyCount = 0;
+  let karachiBiltyCount = 0;
+  let allConsignments: any[] = [];
+  let recentConsignments: any[] = [];
+  let recentActivity: any[] = [];
 
-  const totalRevenue = allConsignments.reduce((sum, c) => sum + c.totalAmount, 0);
-  const totalCollected = allConsignments.reduce((sum, c) => sum + c.paidAmount, 0);
-  const totalReceivable = allConsignments.reduce((sum, c) => sum + c.remainingBalance, 0);
+  try {
+    const results = await Promise.all([
+      prisma.customer.count(),
+      prisma.consignment.count({ where: { shipmentStatus: { not: "DELETED" } } }),
+      prisma.vehicle.count(),
+      prisma.driver.count(),
+      prisma.payment.count(),
+      prisma.cashBook.count(),
+      prisma.consignment.count({
+        where: {
+          NOT: [{ shipmentStatus: "DELIVERED" }, { shipmentStatus: "CANCELLED" }, { shipmentStatus: "DELETED" }],
+        },
+      }),
+      prisma.consignment.count({
+        where: { shipmentStatus: "DELIVERED" },
+      }),
+      prisma.consignment.count({
+        where: { warehouse: { contains: "LAHORE" }, shipmentStatus: { not: "DELETED" } },
+      }),
+      prisma.consignment.count({
+        where: { warehouse: { contains: "KARACHI" }, shipmentStatus: { not: "DELETED" } },
+      }),
+      prisma.consignment.findMany({
+        where: { shipmentStatus: { not: "DELETED" } },
+        select: {
+          totalAmount: true,
+          paidAmount: true,
+          remainingBalance: true,
+        },
+      }),
+      prisma.consignment.findMany({
+        where: { shipmentStatus: { not: "DELETED" } },
+        take: 6,
+        orderBy: { date: "desc" },
+        include: {
+          customer: { select: { name: true, companyName: true } },
+        },
+      }),
+      prisma.auditLog.findMany({
+        take: 6,
+        orderBy: { createdAt: "desc" },
+        include: { user: true },
+      }),
+    ]);
+    [
+      customers,
+      consignments,
+      vehicles,
+      drivers,
+      payments,
+      cashBooks,
+      pendingDeliveries,
+      deliveredCount,
+      lahoreBiltyCount,
+      karachiBiltyCount,
+      allConsignments,
+      recentConsignments,
+      recentActivity,
+    ] = results;
+  } catch (err) {
+    console.error("Non-fatal: could not query all dashboard metrics:", err);
+  }
+
+  const totalRevenue = (allConsignments || []).reduce((sum, c) => sum + (c?.totalAmount || 0), 0);
+  const totalCollected = (allConsignments || []).reduce((sum, c) => sum + (c?.paidAmount || 0), 0);
+  const totalReceivable = (allConsignments || []).reduce((sum, c) => sum + (c?.remainingBalance || 0), 0);
 
   const lahorePct = consignments > 0 ? Math.round((lahoreBiltyCount / consignments) * 100) : 50;
   const karachiPct = consignments > 0 ? Math.round((karachiBiltyCount / consignments) * 100) : 50;

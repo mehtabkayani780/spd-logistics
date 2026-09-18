@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { comparePassword, createToken, setAuthCookie } from '@/lib/auth';
+import { comparePassword, createToken, hashPassword, setAuthCookie } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     // Find user by email, username, or phone
     const lowerIdentifier = identifier.toLowerCase();
-    const user = await prisma.user.findFirst({
+    let user = await prisma.user.findFirst({
       where: {
         OR: [
           { email: identifier },
@@ -33,6 +33,30 @@ export async function POST(request: Request) {
         driver: true,
       },
     });
+
+    // Production bootstrap: If database has 0 admin accounts and official credentials are used, initialize SUPER_ADMIN
+    if (!user && (lowerIdentifier === 'admin@gmail.com' || lowerIdentifier === 'admin')) {
+      const adminCount = await prisma.user.count({
+        where: { role: { in: ['SUPER_ADMIN', 'ADMIN'] } },
+      });
+      if (adminCount === 0) {
+        const hashedPassword = await hashPassword('admin');
+        user = await prisma.user.create({
+          data: {
+            email: 'admin@gmail.com',
+            username: 'admin',
+            name: 'System Admin',
+            role: 'SUPER_ADMIN',
+            status: 'ACTIVE',
+            password: hashedPassword,
+          },
+          include: {
+            customer: true,
+            driver: true,
+          },
+        });
+      }
+    }
 
     if (!user) {
       return NextResponse.json(
@@ -134,6 +158,13 @@ export async function POST(request: Request) {
 
     const response = NextResponse.json({
       success: true,
+      redirectUrl,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
       data: {
         token,
         id: user.id,

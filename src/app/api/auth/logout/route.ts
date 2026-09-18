@@ -25,6 +25,13 @@ export async function POST() {
     }
 
     const response = NextResponse.json({ success: true, message: 'Logged out successfully' });
+    response.cookies.set('spd-auth-token', '', {
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+      httpOnly: true,
+      sameSite: 'lax',
+    });
     response.cookies.delete('spd-auth-token');
     return response;
   } catch (error) {
@@ -35,6 +42,13 @@ export async function POST() {
       // ignore
     }
     const response = NextResponse.json({ success: true, message: 'Logged out' });
+    response.cookies.set('spd-auth-token', '', {
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+      httpOnly: true,
+      sameSite: 'lax',
+    });
     response.cookies.delete('spd-auth-token');
     return response;
   }

@@ -79,7 +79,15 @@ export function AdminNavbar({ onMenuClick, title = "Dashboard" }: AdminNavbarPro
   }, [fetchNotificationsCount]);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    try {
+      localStorage.removeItem('spd_user');
+      sessionStorage.removeItem('spd_auth_token');
+    } catch {}
     window.location.href = '/admin-login';
   };
 
