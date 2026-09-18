@@ -91,11 +91,37 @@ npm start
 
 ## Deployment Guide
 
-### Vercel / Railway / Render
-1. Push repository to GitHub.
-2. Connect your GitHub repository to the hosting platform.
-3. Configure the Environment Variables outlined in `.env.example`.
-4. Deploy the build with default Next.js build command: `npm run build`.
+### Production Database Requirement for Vercel
+Vercel executes Next.js API routes in serverless environments with a read-only, ephemeral file system. Because SQLite relies on writing to a local file (`dev.db`), **SQLite cannot be used on Vercel**. 
+
+For production deployment on Vercel:
+1. Provision a free managed PostgreSQL database from any provider:
+   - **Neon** (https://neon.tech) — Recommended, instant setup with connection pooling
+   - **Supabase** (https://supabase.com)
+   - **Vercel Postgres** (via Vercel Marketplace)
+   - **Railway** (https://railway.app)
+2. In `prisma/schema.prisma`, change the datasource provider from `"sqlite"` to `"postgresql"`:
+   ```prisma
+   datasource db {
+     provider = "postgresql"
+     url      = env("DATABASE_URL")
+   }
+   ```
+3. Set your production environment variables in the Vercel Project Settings (see `.env.example`).
+4. Run `npx prisma db push` or add a post-install build script to push the schema to your cloud database.
+5. Seed initial data if needed: `npx tsx prisma/seed.ts`.
+
+### Deploying to Vercel
+1. Push repository to your new GitHub repository (`spd-logistics`).
+2. In Vercel, click **Add New** > **Project** and import `spd-logistics`.
+3. Add the environment variables from `.env.example`:
+   - `DATABASE_URL`: PostgreSQL connection string
+   - `JWT_SECRET`: Secure random 32+ character string
+   - `ADMIN_EMAIL`: `admin@gmail.com`
+   - `ADMIN_PASSWORD`: `admin`
+   - `GROQ_API_KEY`: Server-side Groq key for customer support AI
+   - `SMTP_USER`, `SMTP_PASS`, `SMTP_HOST`: Gmail/SMTP dispatcher credentials
+4. Click **Deploy**. Vercel will automatically run `npm run build` and launch the platform.
 
 ---
 
