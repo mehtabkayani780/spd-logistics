@@ -516,16 +516,7 @@
   transform: translateY(0) scale(0.97);
 }
 
-/* 6. Custom Cursor Desktop Pointer Override */
-@media (pointer: fine) {
-  html,
-  body,
-  *,
-  *::before,
-  *::after {
-    cursor: none !important;
-  }
-}
+/* 6. Standard System Cursor preserved */
 
 /* 7. Text Reveal Animation Helpers */
 .reveal-text {

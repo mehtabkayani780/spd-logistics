@@ -38,6 +38,9 @@ import {
   X,
   Check,
   Trash2,
+  Camera,
+  Upload,
+  Maximize2,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -77,13 +80,18 @@ export default function BiltyPage() {
 
   // Smart Search term states for Add modal
   const [custSearchTerm, setCustSearchTerm] = useState("");
+  const [receiverCustSearchTerm, setReceiverCustSearchTerm] = useState("");
   const [driverSearchTerm, setDriverSearchTerm] = useState("");
   const [vehSearchTerm, setVehSearchTerm] = useState("");
 
   // Smart Search term states for Edit modal
   const [editCustSearchTerm, setEditCustSearchTerm] = useState("");
+  const [editReceiverCustSearchTerm, setEditReceiverCustSearchTerm] = useState("");
   const [editDriverSearchTerm, setEditDriverSearchTerm] = useState("");
   const [editVehSearchTerm, setEditVehSearchTerm] = useState("");
+
+  // High-Resolution Full View Photo Lightbox Modal
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
 
   // New Bilty Form State
   const [formData, setFormData] = useState({
@@ -114,6 +122,7 @@ export default function BiltyPage() {
     paidAmount: "0",
     shipmentStatus: "BOOKED",
     notes: "",
+    photos: [] as string[],
   });
 
   // Edit Bilty Form State
@@ -146,6 +155,7 @@ export default function BiltyPage() {
     paidAmount: "0",
     shipmentStatus: "BOOKED",
     notes: "",
+    photos: [] as string[],
   });
 
   // Status Update Modal State
@@ -586,8 +596,10 @@ export default function BiltyPage() {
       paidAmount: "0",
       shipmentStatus: "BOOKED",
       notes: "",
+      photos: [] as string[],
     });
     setCustSearchTerm("");
+    setReceiverCustSearchTerm("");
     setDriverSearchTerm("");
     setVehSearchTerm("");
     setFormError("");
@@ -625,15 +637,17 @@ export default function BiltyPage() {
       paidAmount: String(bilty.paidAmount || 0),
       shipmentStatus: bilty.shipmentStatus || "BOOKED",
       notes: bilty.notes || "",
+      photos: bilty.photos || [],
     });
     setEditCustSearchTerm("");
+    setEditReceiverCustSearchTerm("");
     setEditDriverSearchTerm("");
     setEditVehSearchTerm("");
     setEditFormError("");
     setEditBiltyOpen(true);
   };
 
-  // Handle Customer Selection
+  // Handle Shipper / Sender Customer Selection
   const handleSelectCustomer = (cust: any, isEdit = false) => {
     if (isEdit) {
       setEditFormData((prev: any) => ({
@@ -655,6 +669,116 @@ export default function BiltyPage() {
         warehouse: cust?.warehouse || prev.warehouse,
       }));
       setCustSearchTerm("");
+    }
+  };
+
+  // Handle Consignee / Receiver Customer Selection (Task 1)
+  const handleSelectReceiverCustomer = (cust: any, isEdit = false) => {
+    const rName = cust ? (cust.companyName ? `${cust.companyName} (${cust.name})` : cust.name) : "";
+    const rPhone = cust ? cust.phone || "" : "";
+    const rAddr = cust ? cust.address || (cust.city ? `${cust.city}, Pakistan` : "") : "";
+
+    if (isEdit) {
+      setEditFormData((prev: any) => ({
+        ...prev,
+        receiverName: rName || prev.receiverName,
+        receiverPhone: rPhone || prev.receiverPhone,
+        receiverAddress: rAddr || prev.receiverAddress,
+      }));
+      setEditReceiverCustSearchTerm("");
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        receiverName: rName || prev.receiverName,
+        receiverPhone: rPhone || prev.receiverPhone,
+        receiverAddress: rAddr || prev.receiverAddress,
+      }));
+      setReceiverCustSearchTerm("");
+    }
+  };
+
+  // Convert File to compressed Base64 string for client-safe persistence (Task 2)
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        try {
+          const img = new Image();
+          img.onload = () => {
+            const maxDim = 1200;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", 0.75));
+            } else {
+              resolve(result);
+            }
+          };
+          img.onerror = () => resolve(result);
+          img.src = result;
+        } catch {
+          resolve(result);
+        }
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Add cargo photos (Max 3 photos)
+  const handleAddPhotos = async (files: FileList | null, isEdit = false) => {
+    if (!files || files.length === 0) return;
+    const currentList = isEdit ? (editFormData.photos || []) : (formData.photos || []);
+    const remainingSlots = 3 - currentList.length;
+    if (remainingSlots <= 0) return;
+
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    const newPhotos: string[] = [];
+    for (const f of filesToProcess) {
+      const b64 = await fileToBase64(f);
+      if (b64) newPhotos.push(b64);
+    }
+
+    if (isEdit) {
+      setEditFormData((prev: any) => ({
+        ...prev,
+        photos: [...(prev.photos || []), ...newPhotos].slice(0, 3),
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        photos: [...(prev.photos || []), ...newPhotos].slice(0, 3),
+      }));
+    }
+  };
+
+  // Remove photo by index
+  const handleRemovePhoto = (index: number, isEdit = false) => {
+    if (isEdit) {
+      setEditFormData((prev: any) => ({
+        ...prev,
+        photos: (prev.photos || []).filter((_: any, i: number) => i !== index),
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        photos: (prev.photos || []).filter((_: any, i: number) => i !== index),
+      }));
     }
   };
 
@@ -785,6 +909,7 @@ export default function BiltyPage() {
         paymentStatus: pStatus,
         shipmentStatus: formData.shipmentStatus || "BOOKED",
         notes: formData.notes || "",
+        photos: formData.photos || [],
         createdAt: new Date().toISOString(),
         trackingEvents: [
           {
@@ -849,6 +974,7 @@ export default function BiltyPage() {
         paymentStatus: pStatus,
         quantity: parseInt(editFormData.quantity) || 1,
         weight: editFormData.weight ? parseFloat(editFormData.weight) : null,
+        photos: editFormData.photos || [],
       };
 
       // Save locally immediately
@@ -1614,9 +1740,65 @@ export default function BiltyPage() {
 
             {/* 2. Consignee / Receiver Section */}
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-spd-red flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" /> Consignee / Receiver Details
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-spd-red flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" /> Consignee / Receiver Details
+                </span>
+                <span className="text-[11px] text-slate-400">Quick Select customer or enter receiver</span>
+              </div>
+
+              {/* Quick Select Receiver Customer */}
+              <div className="space-y-1.5">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                    <Input
+                      placeholder="Search customer for receiver..."
+                      value={receiverCustSearchTerm}
+                      onChange={(e) => setReceiverCustSearchTerm(e.target.value)}
+                      className="rounded-xl h-9 text-xs pl-8"
+                    />
+                  </div>
+                  <select
+                    onChange={(e) => {
+                      const c = customers.find((cust) => cust.id === e.target.value);
+                      if (c) handleSelectReceiverCustomer(c, false);
+                    }}
+                    value=""
+                    className="w-48 h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                  >
+                    <option value="">Quick Select...</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.companyName ? `${c.companyName} (${c.name})` : c.name} ({c.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {receiverCustSearchTerm && (
+                  <div className="max-h-36 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-md divide-y divide-slate-100 dark:divide-slate-800">
+                    {filterCustomers(receiverCustSearchTerm).length === 0 ? (
+                      <div className="p-2.5 text-xs text-slate-400 text-center">No matching customers found</div>
+                    ) : (
+                      filterCustomers(receiverCustSearchTerm).map((c) => (
+                        <div
+                          key={c.id}
+                          onClick={() => handleSelectReceiverCustomer(c, false)}
+                          className="p-2 hover:bg-red-50 dark:hover:bg-red-950/50 cursor-pointer flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {c.companyName ? `${c.companyName} (${c.name})` : c.name}
+                            </span>
+                            <span className="ml-2 text-slate-400">{c.city}</span>
+                          </div>
+                          <span className="text-slate-500 font-mono text-[11px]">{c.phone}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -1889,6 +2071,64 @@ export default function BiltyPage() {
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     className="rounded-xl h-9 text-xs"
                   />
+                </div>
+              </div>
+
+              {/* Consignment & Cargo Photos (Max 3 Photos) */}
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700/80">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-spd-blue" /> Cargo Photos (Max 3 Attachments)
+                  </Label>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {(formData.photos || []).length} / 3 attached
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(formData.photos || []).map((photo: string, index: number) => (
+                    <div
+                      key={index}
+                      className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video flex items-center justify-center shadow-sm"
+                    >
+                      <img
+                        src={photo}
+                        alt={`Cargo Photo ${index + 1}`}
+                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => setPreviewPhotoUrl(photo)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(index, false)}
+                        className="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md opacity-90 hover:opacity-100 transition-opacity"
+                        title="Remove photo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewPhotoUrl(photo)}
+                        className="absolute bottom-1.5 left-1.5 bg-black/60 hover:bg-black text-white rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1 opacity-90"
+                      >
+                        <Maximize2 className="w-2.5 h-2.5" /> Preview
+                      </button>
+                    </div>
+                  ))}
+
+                  {(formData.photos || []).length < 3 && (
+                    <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-spd-blue rounded-xl p-3 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all aspect-video">
+                      <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Attach Cargo Photo</span>
+                      <span className="text-[9px] text-slate-400">Up to 3 images (PNG/JPG)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => handleAddPhotos(e.target.files, false)}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
@@ -2212,9 +2452,65 @@ export default function BiltyPage() {
 
             {/* 2. Consignee / Receiver Section */}
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-spd-red flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" /> Consignee / Receiver Details
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-spd-red flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" /> Consignee / Receiver Details
+                </span>
+                <span className="text-[11px] text-slate-400">Quick Select customer or enter receiver</span>
+              </div>
+
+              {/* Quick Select Receiver Customer */}
+              <div className="space-y-1.5">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                    <Input
+                      placeholder="Search customer for receiver..."
+                      value={editReceiverCustSearchTerm}
+                      onChange={(e) => setEditReceiverCustSearchTerm(e.target.value)}
+                      className="rounded-xl h-9 text-xs pl-8"
+                    />
+                  </div>
+                  <select
+                    onChange={(e) => {
+                      const c = customers.find((cust) => cust.id === e.target.value);
+                      if (c) handleSelectReceiverCustomer(c, true);
+                    }}
+                    value=""
+                    className="w-48 h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                  >
+                    <option value="">Quick Select...</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.companyName ? `${c.companyName} (${c.name})` : c.name} ({c.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {editReceiverCustSearchTerm && (
+                  <div className="max-h-36 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-md divide-y divide-slate-100 dark:divide-slate-800">
+                    {filterCustomers(editReceiverCustSearchTerm).length === 0 ? (
+                      <div className="p-2.5 text-xs text-slate-400 text-center">No matching customers found</div>
+                    ) : (
+                      filterCustomers(editReceiverCustSearchTerm).map((c) => (
+                        <div
+                          key={c.id}
+                          onClick={() => handleSelectReceiverCustomer(c, true)}
+                          className="p-2 hover:bg-red-50 dark:hover:bg-red-950/50 cursor-pointer flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {c.companyName ? `${c.companyName} (${c.name})` : c.name}
+                            </span>
+                            <span className="ml-2 text-slate-400">{c.city}</span>
+                          </div>
+                          <span className="text-slate-500 font-mono text-[11px]">{c.phone}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -2485,6 +2781,64 @@ export default function BiltyPage() {
                     onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
                     className="rounded-xl h-9 text-xs"
                   />
+                </div>
+              </div>
+
+              {/* Consignment & Cargo Photos (Max 3 Photos) */}
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700/80">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-spd-blue" /> Cargo Photos (Max 3 Attachments)
+                  </Label>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {(editFormData.photos || []).length} / 3 attached
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(editFormData.photos || []).map((photo: string, index: number) => (
+                    <div
+                      key={index}
+                      className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video flex items-center justify-center shadow-sm"
+                    >
+                      <img
+                        src={photo}
+                        alt={`Cargo Photo ${index + 1}`}
+                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => setPreviewPhotoUrl(photo)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(index, true)}
+                        className="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md opacity-90 hover:opacity-100 transition-opacity"
+                        title="Remove photo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewPhotoUrl(photo)}
+                        className="absolute bottom-1.5 left-1.5 bg-black/60 hover:bg-black text-white rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1 opacity-90"
+                      >
+                        <Maximize2 className="w-2.5 h-2.5" /> Preview
+                      </button>
+                    </div>
+                  ))}
+
+                  {(editFormData.photos || []).length < 3 && (
+                    <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-spd-blue rounded-xl p-3 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all aspect-video">
+                      <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Attach Cargo Photo</span>
+                      <span className="text-[9px] text-slate-400">Up to 3 images (PNG/JPG)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => handleAddPhotos(e.target.files, true)}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
@@ -3014,6 +3368,38 @@ export default function BiltyPage() {
                   </div>
                 </div>
 
+                {/* Consignment & Cargo Photos Section (Task 2) */}
+                {viewDetailsBilty.photos && viewDetailsBilty.photos.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-spd-blue" />
+                        Attached Consignment Cargo Photos ({viewDetailsBilty.photos.length})
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">Click photo to view in high-resolution</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {viewDetailsBilty.photos.map((photo: string, index: number) => (
+                        <div
+                          key={index}
+                          onClick={() => setPreviewPhotoUrl(photo)}
+                          className="group relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video cursor-pointer shadow-sm hover:shadow-md transition-all"
+                        >
+                          <img
+                            src={photo}
+                            alt={`Cargo Photo ${index + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-bold">
+                            <Maximize2 className="w-4 h-4" /> Full View
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* 3. Tracking Event History (Section 8) */}
                 <div className="space-y-2">
                   <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -3069,6 +3455,48 @@ export default function BiltyPage() {
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* FULL RESOLUTION CARGO PHOTO PREVIEW MODAL (TASK 2) */}
+      <Dialog open={!!previewPhotoUrl} onOpenChange={() => setPreviewPhotoUrl(null)}>
+        <DialogContent className="max-w-4xl p-2 sm:p-4 bg-slate-950 text-white border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Camera className="w-4 h-4 text-spd-red" />
+              <span className="text-sm font-bold">Consignment Cargo Photo — High Resolution</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {previewPhotoUrl && (
+                <a
+                  href={previewPhotoUrl}
+                  download={`cargo-photo-${Date.now()}.jpg`}
+                  className="px-2.5 py-1 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 text-xs flex items-center gap-1 font-semibold"
+                  title="Download photo"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download
+                </a>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPreviewPhotoUrl(null)}
+                className="h-8 w-8 p-0 text-slate-300 hover:text-white hover:bg-white/10 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center justify-center p-2 sm:p-6 min-h-[300px] max-h-[80vh] overflow-auto">
+            {previewPhotoUrl && (
+              <img
+                src={previewPhotoUrl}
+                alt="Consignment Cargo High Resolution Preview"
+                className="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-2xl"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

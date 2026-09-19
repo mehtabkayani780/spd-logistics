@@ -108,6 +108,10 @@ export default function ReceivablesPage() {
   // Cash books for payment modal
   const [cashBooks, setCashBooks] = useState<any[]>([]);
 
+  // Storage Keys for Offline & Netlify Resilience
+  const LOCAL_RECEIVABLES_PAYMENTS_KEY = "spd_local_receivables_payments";
+  const LOCAL_TXS_KEY = "spd_local_cash_transactions";
+
   // Modals state
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerReceivable | null>(null);
   const [viewBiltiesOpen, setViewBiltiesOpen] = useState(false);
@@ -115,7 +119,7 @@ export default function ReceivablesPage() {
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
 
   // Payment Form
-  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentAmount, setPaymentAmount] = useState<string>("0");
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [paymentReference, setPaymentReference] = useState<string>("");
   const [paymentNotes, setPaymentNotes] = useState<string>("");
@@ -135,8 +139,94 @@ export default function ReceivablesPage() {
       const res = await fetch(`/api/admin/receivables?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
-        setCustomers(data.data.customers || []);
-        setSummary(data.data.summary || {});
+        let custList: CustomerReceivable[] = data.data.customers || [];
+
+        // Apply locally stored payment settlements
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem(LOCAL_RECEIVABLES_PAYMENTS_KEY);
+            const localPmts = raw ? JSON.parse(raw) : [];
+            if (Array.isArray(localPmts) && localPmts.length > 0) {
+              custList = custList.map((cust) => {
+                const pList = localPmts.filter((p: any) => p.customerId === cust.customerId);
+                if (pList.length === 0) return cust;
+
+                let additionalPaid = 0;
+                const existingPmts = [...(cust.payments || [])];
+                let updatedBilties = [...cust.bilties];
+
+                for (const lp of pList) {
+                  const exists = existingPmts.some((p) => p.id === lp.id || p.reference === lp.reference);
+                  if (!exists) {
+                    additionalPaid += lp.amount;
+                    existingPmts.unshift({
+                      id: lp.id,
+                      amount: lp.amount,
+                      date: lp.date,
+                      paymentMethod: lp.paymentMethod,
+                      reference: lp.reference,
+                      notes: lp.notes,
+                      type: "RECEIPT",
+                    });
+
+                    // Update linked bilty if applicable
+                    if (lp.consignmentId) {
+                      updatedBilties = updatedBilties.map((b) => {
+                        if (b.id === lp.consignmentId) {
+                          const bPaid = (b.paidAmount || 0) + lp.amount;
+                          const bRem = Math.max(0, (b.totalAmount || 0) - bPaid);
+                          return {
+                            ...b,
+                            paidAmount: bPaid,
+                            remainingBalance: bRem,
+                            paymentStatus: bRem <= 0 ? "PAID" : "PARTIAL",
+                          };
+                        }
+                        return b;
+                      });
+                    }
+                  }
+                }
+
+                if (additionalPaid > 0) {
+                  const newPaid = (cust.totalPaidAmount || 0) + additionalPaid;
+                  const newRemaining = Math.max(0, (cust.totalOutstandingBalance || 0) - additionalPaid);
+                  const newStatus: "PAID" | "PARTIAL" | "UNPAID" = newRemaining <= 0 ? "PAID" : "PARTIAL";
+                  return {
+                    ...cust,
+                    totalPaidAmount: newPaid,
+                    totalOutstandingBalance: newRemaining,
+                    paymentStatus: newStatus,
+                    payments: existingPmts,
+                    bilties: updatedBilties,
+                  };
+                }
+                return cust;
+              });
+            }
+          } catch (e) {}
+        }
+
+        if (statusFilter !== "ALL") {
+          custList = custList.filter((c) => c.paymentStatus === statusFilter);
+        }
+
+        setCustomers(custList);
+
+        // Recalculate summary stats
+        const totInvoiced = custList.reduce((sum, c) => sum + (c.totalInvoicedAmount || 0), 0);
+        const totReceived = custList.reduce((sum, c) => sum + (c.totalPaidAmount || 0), 0);
+        const totOutstanding = custList.reduce((sum, c) => sum + (c.totalOutstandingBalance || 0), 0);
+        const totBilties = custList.reduce((sum, c) => sum + (c.totalBiltiesCount || 0), 0);
+        const unpaidCount = custList.filter((c) => c.totalOutstandingBalance > 0).length;
+
+        setSummary({
+          totalInvoiced: totInvoiced,
+          totalReceived: totReceived,
+          totalOutstanding: totOutstanding,
+          totalBilties: totBilties,
+          unpaidCustomerCount: unpaidCount,
+        });
       }
     } catch (err) {
       console.error("Failed to load receivables:", err);
@@ -161,7 +251,7 @@ export default function ReceivablesPage() {
     setSelectedCustomer(customer);
     setPaymentBiltyId(biltyId || "");
     const defaultAmount = biltyId
-      ? customer.bilties.find((b) => b.id === biltyId)?.remainingBalance || ""
+      ? customer.bilties.find((b) => b.id === biltyId)?.remainingBalance || 0
       : customer.totalOutstandingBalance;
     setPaymentAmount(defaultAmount ? String(defaultAmount) : "");
     setPaymentReference(`REC-${Date.now().toString().slice(-6)}`);
@@ -171,21 +261,109 @@ export default function ReceivablesPage() {
     setRecordPaymentOpen(true);
   };
 
-  // Submit Payment
+  // Submit Payment Settlement
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer) return;
 
     const num = parseFloat(paymentAmount);
     if (isNaN(num) || num <= 0) {
-      setPaymentErrorMsg("Please enter a valid payment amount");
+      setPaymentErrorMsg("Please enter a valid positive payment amount");
       return;
     }
 
     try {
       setSubmittingPayment(true);
       setPaymentErrorMsg("");
-      const res = await fetch("/api/admin/receivables", {
+
+      const paymentRef = paymentReference || `REC-${Date.now().toString().slice(-6)}`;
+      const newPayment: PaymentRecord & { customerId: string; consignmentId?: string; cashBookId?: string } = {
+        id: `rec_pmt_${Date.now()}`,
+        amount: num,
+        date: new Date().toISOString(),
+        paymentMethod,
+        reference: paymentRef,
+        notes: paymentNotes || undefined,
+        type: "RECEIPT",
+        customerId: selectedCustomer.customerId,
+        consignmentId: paymentBiltyId || undefined,
+        cashBookId: selectedCashBookId || undefined,
+      };
+
+      // 1. Save to localStorage immediately
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem(LOCAL_RECEIVABLES_PAYMENTS_KEY);
+          const existing = raw ? JSON.parse(raw) : [];
+          existing.unshift(newPayment);
+          localStorage.setItem(LOCAL_RECEIVABLES_PAYMENTS_KEY, JSON.stringify(existing));
+
+          // If deposited to cash book, record in local cash transactions
+          if (selectedCashBookId) {
+            const rawTxs = localStorage.getItem(LOCAL_TXS_KEY);
+            const txs = rawTxs ? JSON.parse(rawTxs) : [];
+            txs.unshift({
+              id: `ctx_rec_${Date.now()}`,
+              cashBookId: selectedCashBookId,
+              date: new Date().toISOString(),
+              voucherNumber: paymentRef,
+              description: `Receivable from ${selectedCustomer.customerName} (${paymentMethod})${paymentNotes ? ` - ${paymentNotes}` : ""}`,
+              credit: num,
+              debit: 0,
+              paymentMethod,
+              notes: paymentNotes,
+              createdAt: new Date().toISOString(),
+            });
+            localStorage.setItem(LOCAL_TXS_KEY, JSON.stringify(txs));
+          }
+        } catch (e) {}
+      }
+
+      // 2. Update state optimistically
+      setCustomers((prev) =>
+        prev.map((c) => {
+          if (c.customerId !== selectedCustomer.customerId) return c;
+          const newPaid = (c.totalPaidAmount || 0) + num;
+          const newRemaining = Math.max(0, (c.totalOutstandingBalance || 0) - num);
+          const newStatus: "PAID" | "PARTIAL" | "UNPAID" = newRemaining <= 0 ? "PAID" : "PARTIAL";
+
+          const updatedBilties = c.bilties.map((b) => {
+            if (paymentBiltyId && b.id === paymentBiltyId) {
+              const bPaid = (b.paidAmount || 0) + num;
+              const bRem = Math.max(0, (b.totalAmount || 0) - bPaid);
+              return {
+                ...b,
+                paidAmount: bPaid,
+                remainingBalance: bRem,
+                paymentStatus: bRem <= 0 ? "PAID" : "PARTIAL",
+              };
+            }
+            return b;
+          });
+
+          return {
+            ...c,
+            totalPaidAmount: newPaid,
+            totalOutstandingBalance: newRemaining,
+            paymentStatus: newStatus,
+            bilties: updatedBilties,
+            payments: [newPayment, ...(c.payments || [])],
+          };
+        })
+      );
+
+      // 3. Update summary stats optimistically
+      setSummary((prev) => ({
+        ...prev,
+        totalReceived: prev.totalReceived + num,
+        totalOutstanding: Math.max(0, prev.totalOutstanding - num),
+      }));
+
+      setPaymentSuccessMsg(`Payment of PKR ${num.toLocaleString()} recorded successfully! Balance updated.`);
+      window.dispatchEvent(new CustomEvent("spd-notifications-updated"));
+
+      // 4. Background API sync (resilient)
+      fetch("/api/admin/receivables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -193,23 +371,15 @@ export default function ReceivablesPage() {
           consignmentId: paymentBiltyId || undefined,
           amount: num,
           paymentMethod,
-          reference: paymentReference,
+          reference: paymentRef,
           notes: paymentNotes,
           cashBookId: selectedCashBookId || undefined,
         }),
-      });
+      }).catch((err) => console.warn("Background receivables payment sync warning:", err));
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to record payment");
-      }
-
-      setPaymentSuccessMsg("Payment recorded successfully! Balance updated.");
-      window.dispatchEvent(new CustomEvent("spd-notifications-updated"));
       setTimeout(() => {
         setRecordPaymentOpen(false);
-        fetchData();
-      }, 1000);
+      }, 900);
     } catch (err: any) {
       setPaymentErrorMsg(err.message || "Failed to record payment");
     } finally {
@@ -707,17 +877,25 @@ export default function ReceivablesPage() {
               </div>
             )}
 
-            <div className="p-3 bg-muted/40 rounded-xl space-y-1 text-xs">
+            <div className="p-3 bg-muted/40 rounded-xl space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Total Customer Outstanding:</span>
-                <span className="font-bold text-spd-red">
-                  {formatCurrency(selectedCustomer?.totalOutstandingBalance || 0)}
+                <span className="text-muted-foreground">Total Invoiced / Freight:</span>
+                <span className="font-semibold">{formatCurrency(selectedCustomer?.totalInvoicedAmount || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Previously Paid:</span>
+                <span className="font-semibold text-emerald-600">{formatCurrency(selectedCustomer?.totalPaidAmount || 0)}</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1">
+                <span className="font-bold text-foreground">Total Outstanding Balance:</span>
+                <span className="font-black text-spd-red text-sm">
+                  {formatCurrency(paymentBiltyId ? (selectedCustomer?.bilties.find((b) => b.id === paymentBiltyId)?.remainingBalance || 0) : (selectedCustomer?.totalOutstandingBalance || 0))}
                 </span>
               </div>
               {paymentBiltyId && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Linked Bilty:</span>
-                  <span className="font-semibold text-foreground">
+                <div className="flex justify-between text-[11px] pt-1 border-t border-dashed border-slate-200 dark:border-slate-700">
+                  <span className="text-muted-foreground">Settling Linked Bilty:</span>
+                  <span className="font-mono font-bold text-spd-blue">
                     #{selectedCustomer?.bilties.find((b) => b.id === paymentBiltyId)?.biltyNumber}
                   </span>
                 </div>

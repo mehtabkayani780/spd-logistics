@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { Toaster } from 'sonner';
-import { CustomCursor } from '@/components/shared/custom-cursor';
 import { PageLoadingBar } from '@/components/shared/page-loading-bar';
 import { ScrollRevealProvider } from '@/components/shared/scroll-reveal-provider';
 import './globals.css';
@@ -87,7 +86,6 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <PageLoadingBar />
-          <CustomCursor />
           <ScrollRevealProvider>{children}</ScrollRevealProvider>
           <Toaster
             position="top-right"
