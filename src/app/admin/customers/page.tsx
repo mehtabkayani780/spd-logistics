@@ -1419,10 +1419,10 @@ export default function CustomersPage() {
 
       {/* MODAL 2: VIEW CUSTOMER LEDGER & DETAILS */}
       <Dialog open={!!viewCustomer} onOpenChange={() => setViewCustomer(null)}>
-        <DialogContent className="max-w-3xl rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden">
+          <DialogHeader className="shrink-0 print:hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-xs">
                   {viewCustomer?.photo || viewCustomer?.user?.avatar ? (
                     <img
@@ -1434,16 +1434,16 @@ export default function CustomersPage() {
                     <Users className="w-6 h-6 text-slate-400" />
                   )}
                 </div>
-                <div>
-                  <DialogTitle className="text-xl font-black text-slate-900 dark:text-white">
+                <div className="min-w-0">
+                  <DialogTitle className="text-xl font-black text-slate-900 dark:text-white truncate">
                     {viewCustomer?.name}
                   </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500">
+                  <DialogDescription className="text-xs text-slate-500 truncate">
                     {viewCustomer?.companyName} &bull; Account: {viewCustomer?.accountId} &bull; Hub: {viewCustomer?.warehouse}
                   </DialogDescription>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 {(viewCustomer?.phone || viewCustomer?.whatsapp) && (
                   <>
                     <a
@@ -1473,14 +1473,6 @@ export default function CustomersPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => window.print()}
-                  className="text-xs font-bold gap-1.5 rounded-xl print:hidden"
-                >
-                  <Printer className="w-3.5 h-3.5" /> Print Statement
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
                   onClick={() => setDeleteCustomer(viewCustomer)}
                   className="text-xs font-bold gap-1.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 border-red-200 dark:border-red-900/50 print:hidden"
                 >
@@ -1490,7 +1482,7 @@ export default function CustomersPage() {
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2 print:hidden">
+          <div className="flex-1 overflow-y-auto pr-1 space-y-4 pt-2 print:hidden">
             <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-xs">
               <div>
                 <p className="text-slate-400 font-bold uppercase">Opening Balance</p>
@@ -1517,7 +1509,7 @@ export default function CustomersPage() {
               {(!viewCustomer?.account?.transactions || viewCustomer?.account?.transactions?.length === 0) ? (
                 <p className="text-xs text-slate-400 italic">No ledger transactions posted yet.</p>
               ) : (
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
                   <Table className="min-w-[650px]">
                     <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
                       <TableRow>
@@ -1545,7 +1537,7 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          <DialogFooter className="border-t pt-3 mt-2 flex flex-row items-center justify-between print:hidden">
+          <DialogFooter className="shrink-0 border-t pt-3 mt-2 flex flex-row items-center justify-between print:hidden">
             <Button
               type="button"
               variant="outline"
@@ -1568,7 +1560,7 @@ export default function CustomersPage() {
           </DialogFooter>
 
           {/* DEDICATED A4 PRINTABLE CUSTOMER STATEMENT */}
-          <div className="hidden print:block font-sans text-black p-4 space-y-4 bg-white">
+          <div id="printable-statement" className="hidden print:block font-sans text-black p-4 space-y-3 bg-white">
             {/* Header */}
             <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
               <div className="flex items-center gap-3">
@@ -1589,7 +1581,7 @@ export default function CustomersPage() {
                   </p>
                 </div>
               </div>
-              <div className="text-right border-2 border-slate-900 p-2.5 rounded-lg bg-slate-50">
+              <div className="text-right border-2 border-slate-900 p-2 rounded-lg bg-slate-50">
                 <p className="text-[9px] font-bold uppercase text-slate-500">STATEMENT DATE</p>
                 <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString("en-PK", { dateStyle: "long" })}</p>
                 <p className="text-[9px] font-mono text-slate-600 mt-0.5">ACC ID: {viewCustomer?.accountId || viewCustomer?.id}</p>
@@ -1597,7 +1589,7 @@ export default function CustomersPage() {
             </div>
 
             {/* Customer Profile Block */}
-            <div className="border border-slate-300 rounded-lg p-3 bg-slate-50/50">
+            <div className="border border-slate-300 rounded-lg p-2.5 bg-slate-50/50">
               <p className="text-[10px] font-bold uppercase text-blue-900 border-b border-slate-200 pb-1 mb-2">
                 Customer & Account Particulars
               </p>
@@ -1638,7 +1630,7 @@ export default function CustomersPage() {
             </div>
 
             {/* Financial Summary Metrics */}
-            <div className="grid grid-cols-3 gap-2 border border-slate-300 rounded-lg p-2.5 text-center bg-white">
+            <div className="grid grid-cols-3 gap-2 border border-slate-300 rounded-lg p-2 text-center bg-white">
               <div>
                 <span className="text-[9px] uppercase font-bold text-red-600 block">Total Invoiced / Charges</span>
                 <span className="text-sm font-black text-red-700">
@@ -1661,7 +1653,7 @@ export default function CustomersPage() {
 
             {/* Ledger Transactions Table */}
             <div>
-              <p className="text-[11px] font-black uppercase text-slate-800 mb-1.5">
+              <p className="text-[11px] font-black uppercase text-slate-800 mb-1">
                 Itemized Ledger Statement of Accounts
               </p>
               <table className="w-full border-collapse border border-slate-300 text-[10px]">
@@ -1675,36 +1667,50 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(viewCustomer?.account?.transactions || []).map((tx: any, i: number) => (
+                  {(viewCustomer?.account?.transactions || []).slice(0, 8).map((tx: any, i: number) => (
                     <tr key={tx.id || i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="border border-slate-300 p-1.5 whitespace-nowrap">{formatDate(tx.date)}</td>
-                      <td className="border border-slate-300 p-1.5 font-medium">{tx.description}</td>
-                      <td className="border border-slate-300 p-1.5 text-right font-bold text-red-700">
+                      <td className="border border-slate-300 p-1 whitespace-nowrap">{formatDate(tx.date)}</td>
+                      <td className="border border-slate-300 p-1 font-medium">{tx.description}</td>
+                      <td className="border border-slate-300 p-1 text-right font-bold text-red-700">
                         {tx.debit > 0 ? formatCurrency(tx.debit) : "-"}
                       </td>
-                      <td className="border border-slate-300 p-1.5 text-right font-bold text-emerald-700">
+                      <td className="border border-slate-300 p-1 text-right font-bold text-emerald-700">
                         {tx.credit > 0 ? formatCurrency(tx.credit) : "-"}
                       </td>
-                      <td className="border border-slate-300 p-1.5 text-right font-black">
+                      <td className="border border-slate-300 p-1 text-right font-black">
                         {formatCurrency(tx.balance)}
                       </td>
                     </tr>
                   ))}
+                  {(viewCustomer?.account?.transactions?.length || 0) > 8 && (
+                    <tr className="bg-slate-50 text-[9px] text-slate-600 italic font-medium">
+                      <td colSpan={5} className="border border-slate-300 p-1 text-center">
+                        (+ {(viewCustomer?.account?.transactions?.length || 0) - 8} additional ledger entries recorded in SPD Portal)
+                      </td>
+                    </tr>
+                  )}
+                  {(!viewCustomer?.account?.transactions || viewCustomer?.account?.transactions?.length === 0) && (
+                    <tr>
+                      <td colSpan={5} className="border border-slate-300 p-2 text-center text-slate-400 italic">
+                        No ledger transactions recorded yet for this customer.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Official Signatures Row */}
-            <div className="grid grid-cols-3 gap-8 pt-8 text-center text-xs">
-              <div className="border-t border-slate-400 pt-2">
+            <div className="grid grid-cols-3 gap-8 pt-4 text-center text-xs">
+              <div className="border-t border-slate-400 pt-1.5">
                 <p className="font-bold text-slate-900">Accounts Department</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">SPD Logistics Roster</p>
               </div>
-              <div className="border-t border-slate-400 pt-2">
+              <div className="border-t border-slate-400 pt-1.5">
                 <p className="font-bold text-slate-900">Customer Acknowledgment</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">{viewCustomer?.companyName || viewCustomer?.name}</p>
               </div>
-              <div className="border-t border-slate-400 pt-2">
+              <div className="border-t border-slate-400 pt-1.5">
                 <p className="font-bold text-slate-900">Chief Financial Controller</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Official Stamp & Date</p>
               </div>

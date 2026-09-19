@@ -718,16 +718,6 @@ export default function VehiclesPage() {
                 </DialogDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="bg-spd-blue hover:bg-blue-700 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print Statement</span>
-                </Button>
                 <span
                   className={`text-xs px-3 py-1 rounded-full font-bold self-start sm:self-auto ${
                     selectedVehicle?.status === "AVAILABLE"
@@ -925,7 +915,7 @@ export default function VehiclesPage() {
           </DialogFooter>
 
           {/* DEDICATED A4 PRINTABLE LEDGER SHEET */}
-          <div className="hidden print:block font-sans text-black p-4 space-y-4 bg-white">
+          <div id="printable-statement" className="hidden print:block font-sans text-black p-4 space-y-3 bg-white">
             {/* Header */}
             <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
               <div className="flex items-center gap-3">
@@ -946,7 +936,7 @@ export default function VehiclesPage() {
                   </p>
                 </div>
               </div>
-              <div className="text-right border-2 border-slate-900 p-2.5 rounded-lg bg-slate-50">
+              <div className="text-right border-2 border-slate-900 p-2 rounded-lg bg-slate-50">
                 <p className="text-[9px] font-bold uppercase text-slate-500">STATEMENT DATE</p>
                 <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString("en-PK", { dateStyle: "long" })}</p>
                 <p className="text-[9px] font-mono text-slate-600 mt-0.5">FLEET REF: {selectedVehicle?.vehicleNumber}</p>
@@ -954,7 +944,7 @@ export default function VehiclesPage() {
             </div>
 
             {/* Vehicle Specifications Block */}
-            <div className="border border-slate-300 rounded-lg p-3 bg-slate-50/50">
+            <div className="border border-slate-300 rounded-lg p-2.5 bg-slate-50/50">
               <p className="text-[10px] font-bold uppercase text-blue-900 border-b border-slate-200 pb-1 mb-2">
                 Commercial Fleet Vehicle Profile
               </p>
@@ -995,7 +985,7 @@ export default function VehiclesPage() {
             </div>
 
             {/* Performance Summary Metrics */}
-            <div className="grid grid-cols-4 gap-2 border border-slate-300 rounded-lg p-2.5 text-center bg-white">
+            <div className="grid grid-cols-4 gap-2 border border-slate-300 rounded-lg p-2 text-center bg-white">
               <div>
                 <span className="text-[9px] uppercase font-bold text-slate-500 block">Total Consignments</span>
                 <span className="text-sm font-black text-slate-900">{selectedVehicle?.consignments?.length || 0}</span>
@@ -1022,7 +1012,7 @@ export default function VehiclesPage() {
 
             {/* Bilty Records Table */}
             <div>
-              <p className="text-[11px] font-black uppercase text-slate-800 mb-1.5">
+              <p className="text-[11px] font-black uppercase text-slate-800 mb-1">
                 Consignment Bilty Records & Trip Manifest
               </p>
               <table className="w-full border-collapse border border-slate-300 text-[10px]">
@@ -1040,34 +1030,48 @@ export default function VehiclesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(selectedVehicle?.consignments || []).map((c: any, i: number) => (
+                  {(selectedVehicle?.consignments || []).slice(0, 8).map((c: any, i: number) => (
                     <tr key={c.id || i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="border border-slate-300 p-1.5 font-mono font-bold text-red-700">{c.biltyNumber}</td>
-                      <td className="border border-slate-300 p-1.5 whitespace-nowrap">{formatDate(c.date)}</td>
-                      <td className="border border-slate-300 p-1.5 font-medium">{c.senderName}</td>
-                      <td className="border border-slate-300 p-1.5 font-medium">{c.receiverName}</td>
-                      <td className="border border-slate-300 p-1.5">{c.origin} &rarr; {c.destination}</td>
-                      <td className="border border-slate-300 p-1.5 text-right font-medium">{c.weight ? `${c.weight} kg` : `${c.quantity || 1} pkgs`}</td>
-                      <td className="border border-slate-300 p-1.5 text-right font-black">{formatCurrency(c.totalAmount || 0)}</td>
-                      <td className="border border-slate-300 p-1.5 text-center font-bold uppercase">{c.paymentStatus}</td>
-                      <td className="border border-slate-300 p-1.5 text-center font-semibold">{c.shipmentStatus?.replace(/_/g, ' ')}</td>
+                      <td className="border border-slate-300 p-1 font-mono font-bold text-red-700">{c.biltyNumber}</td>
+                      <td className="border border-slate-300 p-1 whitespace-nowrap">{formatDate(c.date)}</td>
+                      <td className="border border-slate-300 p-1 font-medium">{c.senderName}</td>
+                      <td className="border border-slate-300 p-1 font-medium">{c.receiverName}</td>
+                      <td className="border border-slate-300 p-1">{c.origin} &rarr; {c.destination}</td>
+                      <td className="border border-slate-300 p-1 text-right font-medium">{c.weight ? `${c.weight} kg` : `${c.quantity || 1} pkgs`}</td>
+                      <td className="border border-slate-300 p-1 text-right font-black">{formatCurrency(c.totalAmount || 0)}</td>
+                      <td className="border border-slate-300 p-1 text-center font-bold uppercase">{c.paymentStatus}</td>
+                      <td className="border border-slate-300 p-1 text-center font-semibold">{c.shipmentStatus?.replace(/_/g, ' ')}</td>
                     </tr>
                   ))}
+                  {(selectedVehicle?.consignments?.length || 0) > 8 && (
+                    <tr className="bg-slate-50 text-[9px] text-slate-600 italic font-medium">
+                      <td colSpan={9} className="border border-slate-300 p-1 text-center">
+                        (+ {(selectedVehicle?.consignments?.length || 0) - 8} additional consignments recorded in SPD Portal)
+                      </td>
+                    </tr>
+                  )}
+                  {(!selectedVehicle?.consignments || selectedVehicle.consignments.length === 0) && (
+                    <tr>
+                      <td colSpan={9} className="border border-slate-300 p-2 text-center text-slate-400 italic">
+                        No recent consignment history found for this vehicle.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Official Signatures Row */}
-            <div className="grid grid-cols-3 gap-8 pt-8 text-center text-xs">
-              <div className="border-t border-slate-400 pt-2">
+            <div className="grid grid-cols-3 gap-8 pt-4 text-center text-xs">
+              <div className="border-t border-slate-400 pt-1.5">
                 <p className="font-bold text-slate-900">Fleet Dispatch Officer</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">SPD Logistics Terminal</p>
               </div>
-              <div className="border-t border-slate-400 pt-2">
+              <div className="border-t border-slate-400 pt-1.5">
                 <p className="font-bold text-slate-900">Vehicle Driver / Incharge</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Verified & Signed</p>
               </div>
-              <div className="border-t border-slate-400 pt-2">
+              <div className="border-t border-slate-400 pt-1.5">
                 <p className="font-bold text-slate-900">Accounts & Audit Department</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Official Stamp & Date</p>
               </div>
