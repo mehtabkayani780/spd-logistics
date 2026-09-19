@@ -28,11 +28,29 @@ export function AdminNavbar({ onMenuClick, title = "Dashboard" }: AdminNavbarPro
 
   const fetchNotificationsCount = React.useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/notifications?countOnly=true");
-      const data = await res.json();
-      if (data.success && typeof data.unreadCount === "number") {
-        setUnreadCount(data.unreadCount);
+      let count = 0;
+      let apiSuccess = false;
+      try {
+        const res = await fetch("/api/admin/notifications?countOnly=true");
+        const data = await res.json();
+        if (data.success && typeof data.unreadCount === "number") {
+          count = data.unreadCount;
+          apiSuccess = true;
+        }
+      } catch {}
+
+      if (typeof window !== "undefined") {
+        const readIds = JSON.parse(localStorage.getItem("spd_notifications_read_ids") || "[]");
+        const deletedIds = JSON.parse(localStorage.getItem("spd_notifications_deleted_ids") || "[]");
+        if (!apiSuccess || count === 0) {
+          // Check demo seed unread count (seed-notif-1, 2, 3, 4 are unread by default)
+          const seedUnread = ["seed-notif-1", "seed-notif-2", "seed-notif-3", "seed-notif-4"].filter(
+            (id) => !readIds.includes(id) && !deletedIds.includes(id)
+          ).length;
+          count = seedUnread;
+        }
       }
+      setUnreadCount(count);
     } catch {
       // Graceful fallback
     }

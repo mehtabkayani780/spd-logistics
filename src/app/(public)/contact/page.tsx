@@ -48,6 +48,24 @@ export default function ContactPage() {
       const data = await res.json();
 
       if (data.success) {
+        if (typeof window !== "undefined") {
+          try {
+            const inquiries = JSON.parse(localStorage.getItem("spd_contact_inquiries") || "[]");
+            inquiries.unshift({
+              id: "inq-" + Date.now(),
+              name: values.name,
+              phone: values.phone,
+              email: values.email,
+              company: "Commercial Logistics Client",
+              subject: "Website Freight Inquiry",
+              message: values.message,
+              createdAt: new Date().toISOString(),
+              status: "NEW",
+            });
+            localStorage.setItem("spd_contact_inquiries", JSON.stringify(inquiries.slice(0, 50)));
+            window.dispatchEvent(new CustomEvent("spd-notifications-updated"));
+          } catch {}
+        }
         setIsSubmitted(true);
         toast.success("Message sent successfully!", {
           description: "Delivered to superpakdatawale@gmail.com",

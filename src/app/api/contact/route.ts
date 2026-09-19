@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         type: "CONTACT",
         title: `New Inquiry from ${clientName}`,
         message: `${clientSubject}: "${clientMessage}" (Phone: ${clientPhone})`,
-        link: "/admin/audit-logs",
+        link: "/admin/notifications",
       });
     } catch (dbErr) {
       console.warn("[Contact DB Warning]", dbErr);

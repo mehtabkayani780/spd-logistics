@@ -25,6 +25,8 @@ import {
   Calendar,
   FileText,
   Package,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -40,6 +42,10 @@ export default function VehiclesPage() {
   const [historyStatusFilter, setHistoryStatusFilter] = useState("");
 
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [deleteVehicle, setDeleteVehicle] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -60,11 +66,22 @@ export default function VehiclesPage() {
   });
 
   const LOCAL_VEHICLES_KEY = "spd_local_vehicles";
+  const LOCAL_DELETED_VEHICLES_KEY = "spd_local_deleted_vehicles";
 
   const getLocalVehicles = (): any[] => {
     if (typeof window === "undefined") return [];
     try {
       const raw = localStorage.getItem(LOCAL_VEHICLES_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const getDeletedVehicleIds = (): string[] => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(LOCAL_DELETED_VEHICLES_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -84,6 +101,20 @@ export default function VehiclesPage() {
       localStorage.setItem(LOCAL_VEHICLES_KEY, JSON.stringify(list));
     } catch (err) {
       console.warn("Save local vehicle error:", err);
+    }
+  };
+
+  const removeLocalVehicle = (id: string, vehicleNumber?: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const list = getLocalVehicles().filter((x) => x.id !== id && (!vehicleNumber || x.vehicleNumber !== vehicleNumber));
+      localStorage.setItem(LOCAL_VEHICLES_KEY, JSON.stringify(list));
+      const del = getDeletedVehicleIds();
+      if (id && !del.includes(id)) del.push(id);
+      if (vehicleNumber && !del.includes(vehicleNumber)) del.push(vehicleNumber);
+      localStorage.setItem(LOCAL_DELETED_VEHICLES_KEY, JSON.stringify(del));
+    } catch (err) {
+      console.warn("Remove local vehicle error:", err);
     }
   };
 
@@ -116,11 +147,45 @@ export default function VehiclesPage() {
         }
       }
 
+      // Filter out deleted vehicles
+      const deletedIds = getDeletedVehicleIds();
+      list = list.filter((v) => !deletedIds.includes(v.id) && !deletedIds.includes(v.vehicleNumber));
+
       setVehicles(list);
     } catch (err) {
       console.error("Error fetching vehicles:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteVehicle = async () => {
+    if (!deleteVehicle) return;
+    setDeleting(true);
+    try {
+      removeLocalVehicle(deleteVehicle.id, deleteVehicle.vehicleNumber);
+      setVehicles((prev) =>
+        prev.filter((v) => v.id !== deleteVehicle.id && v.vehicleNumber !== deleteVehicle.vehicleNumber)
+      );
+
+      if (selectedVehicle?.id === deleteVehicle.id || selectedVehicle?.vehicleNumber === deleteVehicle.vehicleNumber) {
+        setSelectedVehicle(null);
+      }
+
+      fetch(`/api/admin/vehicles?id=${deleteVehicle.id}`, {
+        method: "DELETE",
+      }).catch(() => {});
+
+      setActionFeedback({
+        type: "success",
+        text: `Vehicle ${deleteVehicle.vehicleNumber} deleted successfully from fleet.`,
+      });
+      setDeleteVehicle(null);
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setActionFeedback({ type: "error", text: "Unable to delete vehicle." });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -257,6 +322,31 @@ export default function VehiclesPage() {
         </div>
       </div>
 
+      {actionFeedback && (
+        <div
+          className={`p-4 rounded-xl border text-xs font-bold flex items-center justify-between transition-all ${
+            actionFeedback.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+              : "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {actionFeedback.type === "success" ? (
+              <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            )}
+            <span>{actionFeedback.text}</span>
+          </div>
+          <button
+            onClick={() => setActionFeedback(null)}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Vehicles Table */}
       {loading ? (
         <div className="p-12 text-center flex flex-col items-center justify-center gap-2">
@@ -341,21 +431,32 @@ export default function VehiclesPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedVehicle(v)}
-                      className="h-8 px-2.5 rounded-lg text-xs font-bold gap-1.5 border-spd-blue/30 text-spd-blue hover:bg-spd-blue/10"
-                      title="View Vehicle Account & Bilty History"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Account & Bilties</span>
-                      {v.consignments?.length > 0 && (
-                        <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-spd-blue text-white font-bold">
-                          {v.consignments.length}
-                        </span>
-                      )}
-                    </Button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedVehicle(v)}
+                        className="h-8 px-2.5 rounded-lg text-xs font-bold gap-1.5 border-spd-blue/30 text-spd-blue hover:bg-spd-blue/10"
+                        title="View Vehicle Account & Bilty History"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Account & Bilties</span>
+                        {v.consignments?.length > 0 && (
+                          <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-spd-blue text-white font-bold">
+                            {v.consignments.length}
+                          </span>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteVehicle(v)}
+                        className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                        title="Delete vehicle from fleet"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -715,6 +816,54 @@ export default function VehiclesPage() {
               );
             })()}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE VEHICLE CONFIRMATION DIALOG */}
+      <Dialog open={!!deleteVehicle} onOpenChange={(open) => !open && setDeleteVehicle(null)}>
+        <DialogContent className="max-w-md rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-lg font-black text-slate-900 dark:text-white">
+              Delete Fleet Vehicle?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 pt-1 leading-relaxed">
+              Are you sure you want to remove vehicle <span className="font-bold text-slate-900 dark:text-white">{deleteVehicle?.vehicleNumber}</span> ({deleteVehicle?.vehicleType}) from the fleet roster? This action will remove it from active assignments.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteVehicle(null)}
+              disabled={deleting}
+              className="rounded-xl text-xs font-bold border-slate-200 dark:border-slate-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteVehicle}
+              disabled={deleting}
+              className="rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white gap-2 shadow-md shadow-rose-600/20"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>Confirm Delete</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
