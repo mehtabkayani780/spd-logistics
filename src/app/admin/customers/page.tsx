@@ -460,11 +460,11 @@ export default function CustomersPage() {
             Create dealer/customer login credentials, manage accounts, credit limits & bilty ledgers.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={handleExportCSV}
-            className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
+            className="w-full sm:w-auto rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
           >
             <Download className="w-4 h-4" />
             <span>Export CSV</span>
@@ -477,7 +477,7 @@ export default function CustomersPage() {
               if (addFileInputRef.current) addFileInputRef.current.value = "";
               setAddModalOpen(true);
             }}
-            className="bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
+            className="w-full sm:w-auto bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
           >
             <Plus className="w-4 h-4" />
             <span>Add Customer / Dealer</span>
@@ -511,21 +511,21 @@ export default function CustomersPage() {
       )}
 
       {/* Filters Bar */}
-      <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div className="p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Search name, company, phone, email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs"
+            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs w-full"
           />
         </div>
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto">
           <select
             value={warehouseFilter}
             onChange={(e) => setWarehouseFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            className="flex-1 sm:flex-initial h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-[120px]"
           >
             <option value="">All Warehouses</option>
             <option value="LAHORE">Lahore Hub</option>
@@ -535,19 +535,19 @@ export default function CustomersPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            className="flex-1 sm:flex-initial h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-[120px]"
           >
             <option value="">All Statuses</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
+            <option value="BLOCKED">Blocked</option>
           </select>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={fetchCustomers}
-            className="h-10 w-10 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white"
-            title="Refresh list"
+            className="h-10 w-10 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white shrink-0"
           >
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -558,7 +558,7 @@ export default function CustomersPage() {
       {loading ? (
         <div className="p-12 text-center flex flex-col items-center justify-center gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-spd-red" />
-          <p className="text-xs text-slate-400 font-semibold">Loading customers...</p>
+          <p className="text-xs text-slate-400 font-semibold">Loading registered customers...</p>
         </div>
       ) : customers.length === 0 ? (
         <EmptyState
@@ -568,7 +568,7 @@ export default function CustomersPage() {
         />
       ) : (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-          <Table>
+          <Table className="min-w-[850px]">
             <TableHeader className="bg-slate-50/70 dark:bg-slate-800/50">
               <TableRow>
                 <TableHead className="text-xs font-bold">Account / Name</TableHead>

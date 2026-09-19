@@ -80,8 +80,8 @@ export default async function AuditLogsPage() {
           description="Activity will be logged here automatically" 
         />
       ) : (
-        <div className="rounded-md border">
-          <Table>
+        <div className="rounded-xl border overflow-hidden">
+          <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Date/Time</TableHead>

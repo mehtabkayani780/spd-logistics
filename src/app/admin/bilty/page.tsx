@@ -943,7 +943,7 @@ export default function BiltyPage() {
         </div>
         <Button
           onClick={handleOpenAddBilty}
-          className="bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
+          className="w-full sm:w-auto bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs sm:text-sm rounded-xl shadow-md gap-2 h-10 px-4 shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>New Consignment Bilty</span>
@@ -960,31 +960,31 @@ export default function BiltyPage() {
           }`}
         >
           <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600" />
-            <span>{actionFeedback.text}</span>
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="truncate">{actionFeedback.text}</span>
           </div>
-          <button onClick={() => setActionFeedback(null)} className="p-1 hover:opacity-75">
+          <button onClick={() => setActionFeedback(null)} className="p-1 hover:opacity-75 shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
       {/* Filter Bar */}
-      <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div className="p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Search Bilty #, tracking, sender, receiver..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs"
+            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs w-full"
           />
         </div>
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto">
           <select
             value={warehouseFilter}
             onChange={(e) => setWarehouseFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            className="flex-1 sm:flex-initial h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-[120px]"
           >
             <option value="">All Hubs</option>
             <option value="LAHORE">Lahore Hub</option>
@@ -994,7 +994,7 @@ export default function BiltyPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            className="flex-1 sm:flex-initial h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-[130px]"
           >
             <option value="">All Statuses</option>
             <option value="BOOKING_RECEIVED">Booking Received</option>
@@ -1012,14 +1012,14 @@ export default function BiltyPage() {
             variant="ghost"
             size="icon"
             onClick={fetchConsignments}
-            className="h-10 w-10 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            className="h-10 w-10 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white shrink-0"
           >
             <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* Bilties Table */}
+      {/* Bilties Content */}
       {loading ? (
         <div className="p-12 text-center flex flex-col items-center justify-center gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-spd-red" />
@@ -1032,91 +1032,33 @@ export default function BiltyPage() {
           description="Create your first consignment bilty voucher to initiate shipment dispatch."
         />
       ) : (
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-          <Table>
-            <TableHeader className="bg-slate-50/70 dark:bg-slate-800/50">
-              <TableRow>
-                <TableHead className="text-xs font-bold">Bilty # / Tracking</TableHead>
-                <TableHead className="text-xs font-bold">Shipper & Receiver</TableHead>
-                <TableHead className="text-xs font-bold">Route & Hub</TableHead>
-                <TableHead className="text-xs font-bold">Truck & Driver</TableHead>
-                <TableHead className="text-xs font-bold">Total Freight</TableHead>
-                <TableHead className="text-xs font-bold">Balance</TableHead>
-                <TableHead className="text-xs font-bold">Status</TableHead>
-                <TableHead className="text-xs font-bold text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {consignments.map((c) => (
-                <TableRow key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                  <TableCell>
+        <>
+          {/* MOBILE CARDS VIEW (< 768px) */}
+          <div className="block md:hidden space-y-3">
+            {consignments.map((c) => {
+              const targetPhone = c.receiver?.whatsapp || c.receiverPhone || c.receiver?.phone || c.customer?.whatsapp || c.customer?.phone;
+              const waMsg = targetPhone ? getBiltyTrackingWhatsAppMessage({
+                biltyNumber: c.biltyNumber,
+                trackingId: c.trackingId,
+                status: c.shipmentStatus,
+                origin: c.origin,
+                destination: c.destination,
+              }) : "";
+
+              return (
+                <div
+                  key={c.id}
+                  className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-3"
+                >
+                  {/* Card Header: Bilty #, Tracking & Status */}
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
                     <div>
-                      <p className="font-black text-xs text-slate-900 dark:text-white">{c.biltyNumber}</p>
-                      <p className="text-[10px] text-spd-blue font-mono font-bold">{c.trackingId}</p>
+                      <p className="font-black text-sm text-slate-900 dark:text-white">{c.biltyNumber}</p>
+                      <p className="text-[11px] text-spd-blue font-mono font-bold">{c.trackingId}</p>
                       <p className="text-[10px] text-slate-400">{formatDate(c.date)}</p>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        From: {c.customer?.companyName || c.senderName}
-                      </p>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                        To: {c.receiverName} ({c.receiverPhone || "No phone"})
-                      </p>
-                      <p className="text-[10px] text-slate-400 truncate max-w-xs">{c.packageDetails}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
-                        <span>{c.origin}</span>
-                        <span>&rarr;</span>
-                        <span>{c.destination}</span>
-                      </div>
-                      <span
-                        className={`text-[10px] px-2 py-0.2 rounded-full font-bold mt-1 inline-block ${
-                          c.warehouse === "KARACHI"
-                            ? "bg-blue-100 text-spd-blue dark:bg-blue-950/60 dark:text-blue-400"
-                            : "bg-red-100 text-spd-red dark:bg-red-950/60 dark:text-red-400"
-                        }`}
-                      >
-                        {c.warehouse || "LAHORE"} HUB
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                        <Truck className="w-3.5 h-3.5 text-slate-400" />
-                        {c.vehicleNumber || c.vehicle?.vehicleNumber || "Unassigned"}
-                      </p>
-                      <p className="text-[10px] text-slate-500">
-                        Driver: {c.driverName || c.driver?.name || "Unassigned"}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <p className="text-xs font-black text-slate-900 dark:text-white">
-                      {formatCurrency(c.totalAmount)}
-                    </p>
-                    <p className="text-[10px] text-emerald-600 font-semibold">
-                      Paid: {formatCurrency(c.paidAmount)}
-                    </p>
-                  </TableCell>
-                  <TableCell>
                     <span
-                      className={`text-xs font-black ${
-                        c.remainingBalance > 0 ? "text-amber-600" : "text-emerald-600"
-                      }`}
-                    >
-                      {formatCurrency(c.remainingBalance)}
-                    </span>
-                    <p className="text-[10px] uppercase font-bold text-slate-400">{c.paymentStatus}</p>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${
+                      className={`text-[10px] px-2.5 py-1 rounded-full font-bold shrink-0 ${
                         c.shipmentStatus === "DELIVERED"
                           ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
                           : c.shipmentStatus === "IN_TRANSIT" || c.shipmentStatus === "DRIVER_ON_THE_WAY"
@@ -1126,98 +1068,340 @@ export default function BiltyPage() {
                     >
                       {c.shipmentStatus.replace(/_/g, " ")}
                     </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                  </div>
+
+                  {/* Route & Hub */}
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black">{c.origin}</span>
+                      <span className="text-slate-400">&rarr;</span>
+                      <span className="font-black text-spd-blue">{c.destination}</span>
+                    </div>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        c.warehouse === "KARACHI"
+                          ? "bg-blue-100 text-spd-blue dark:bg-blue-950/60 dark:text-blue-400"
+                          : "bg-red-100 text-spd-red dark:bg-red-950/60 dark:text-red-400"
+                      }`}
+                    >
+                      {c.warehouse || "LAHORE"} HUB
+                    </span>
+                  </div>
+
+                  {/* Parties Info */}
+                  <div className="text-xs space-y-1 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <p className="text-slate-900 dark:text-white font-bold truncate">
+                      <span className="text-slate-400 font-normal">From: </span>
+                      {c.customer?.companyName || c.senderName}
+                    </p>
+                    <p className="text-slate-700 dark:text-slate-300 truncate">
+                      <span className="text-slate-400 font-normal">To: </span>
+                      {c.receiverName} {c.receiverPhone && `(${c.receiverPhone})`}
+                    </p>
+                    {c.packageDetails && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        <span className="text-slate-400 font-normal">Cargo: </span>
+                        {c.packageDetails} ({c.quantity} pcs &bull; {c.weight} kg)
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Fleet & Financials */}
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Total Freight</p>
+                      <p className="font-black text-slate-900 dark:text-white">{formatCurrency(c.totalAmount)}</p>
+                      <p className="text-[10px] text-emerald-600 font-semibold">Paid: {formatCurrency(c.paidAmount)}</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Balance</p>
+                      <p className={`font-black ${c.remainingBalance > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                        {formatCurrency(c.remainingBalance)}
+                      </p>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">{c.paymentStatus}</p>
+                    </div>
+                  </div>
+
+                  {/* Vehicle & Driver */}
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                    <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                      <Truck className="w-3.5 h-3.5 text-slate-400" />
+                      {c.vehicleNumber || c.vehicle?.vehicleNumber || "No Truck"}
+                    </span>
+                    <span className="truncate max-w-[150px]">
+                      Driver: {c.driverName || c.driver?.name || "Unassigned"}
+                    </span>
+                  </div>
+
+                  {/* Action Buttons Toolbar */}
+                  <div className="flex items-center justify-between gap-1 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex-wrap">
+                    <div className="flex items-center gap-1">
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 text-xs font-semibold gap-1"
-                        title="View Shipment Details & Contacts"
+                        className="h-8 px-2 rounded-lg text-slate-600 hover:text-slate-900 text-xs font-semibold gap-1"
                         onClick={() => setViewDetailsBilty(c)}
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span className="hidden xl:inline">Details</span>
+                        <span>Details</span>
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2 rounded-lg text-blue-600 hover:text-blue-900 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-950/50 text-xs font-semibold gap-1"
-                        title="Edit Bilty & Assignments"
+                        className="h-8 px-2 rounded-lg text-blue-600 hover:text-blue-900 text-xs font-semibold gap-1"
                         onClick={() => handleOpenEdit(c)}
                       >
                         <Edit className="w-3.5 h-3.5" />
-                        <span className="hidden xl:inline">Edit</span>
+                        <span>Edit</span>
                       </Button>
-                      {(() => {
-                        const targetPhone = c.receiver?.whatsapp || c.receiverPhone || c.receiver?.phone || c.customer?.whatsapp || c.customer?.phone;
-                        if (!targetPhone) return null;
-                        const msg = getBiltyTrackingWhatsAppMessage({
-                          biltyNumber: c.biltyNumber,
-                          trackingId: c.trackingId,
-                          status: c.shipmentStatus,
-                          origin: c.origin,
-                          destination: c.destination,
-                        });
-                        return (
-                          <a
-                            href={buildWhatsAppUrl(targetPhone, msg)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
-                            title="WhatsApp Customer / Consignee"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </a>
-                        );
-                      })()}
+                      {targetPhone && (
+                        <a
+                          href={buildWhatsAppUrl(targetPhone, waMsg)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                          title="WhatsApp Consignee"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </a>
+                      )}
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 rounded-lg text-spd-blue hover:bg-blue-50 dark:hover:bg-blue-950/50"
-                        title="Print Bilty Voucher"
+                        className="h-8 w-8 rounded-lg text-spd-blue"
                         onClick={() => setPrintBilty(c)}
+                        title="Print Bilty"
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
-                        title="Delete Bilty"
+                        className="h-8 w-8 rounded-lg text-red-600"
                         onClick={() => {
                           setDeletingBilty(c);
                           setDeleteStep(1);
                         }}
+                        title="Delete Bilty"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2.5 rounded-lg text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800 text-xs font-bold gap-1 shadow-sm"
-                        title="Update Shipment Status"
-                        onClick={() => {
-                          setStatusModalBilty(c);
-                          setStatusUpdate({
-                            shipmentStatus: c.shipmentStatus,
-                            location: `${c.destination} Terminal`,
-                            statusNote: "",
-                            receivedBy: c.receiverName || "",
-                            deliveryDate: new Date().toISOString().slice(0, 10),
-                          });
-                        }}
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Update Status</span>
-                      </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2.5 rounded-lg text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 text-xs font-bold gap-1 shrink-0"
+                      onClick={() => {
+                        setStatusModalBilty(c);
+                        setStatusUpdate({
+                          shipmentStatus: c.shipmentStatus,
+                          location: `${c.destination} Terminal`,
+                          statusNote: "",
+                          receivedBy: c.receiverName || "",
+                          deliveryDate: new Date().toISOString().slice(0, 10),
+                        });
+                      }}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Status</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP TABLE VIEW (>= 768px) */}
+          <div className="hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto scrollbar-thin">
+              <Table className="min-w-[950px]">
+                <TableHeader className="bg-slate-50/70 dark:bg-slate-800/50">
+                  <TableRow>
+                    <TableHead className="text-xs font-bold">Bilty # / Tracking</TableHead>
+                    <TableHead className="text-xs font-bold">Shipper & Receiver</TableHead>
+                    <TableHead className="text-xs font-bold">Route & Hub</TableHead>
+                    <TableHead className="text-xs font-bold">Truck & Driver</TableHead>
+                    <TableHead className="text-xs font-bold">Total Freight</TableHead>
+                    <TableHead className="text-xs font-bold">Balance</TableHead>
+                    <TableHead className="text-xs font-bold">Status</TableHead>
+                    <TableHead className="text-xs font-bold text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {consignments.map((c) => (
+                    <TableRow key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                      <TableCell>
+                        <div>
+                          <p className="font-black text-xs text-slate-900 dark:text-white">{c.biltyNumber}</p>
+                          <p className="text-[10px] text-spd-blue font-mono font-bold">{c.trackingId}</p>
+                          <p className="text-[10px] text-slate-400">{formatDate(c.date)}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white">
+                            From: {c.customer?.companyName || c.senderName}
+                          </p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                            To: {c.receiverName} ({c.receiverPhone || "No phone"})
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate max-w-xs">{c.packageDetails}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                            <span>{c.origin}</span>
+                            <span>&rarr;</span>
+                            <span>{c.destination}</span>
+                          </div>
+                          <span
+                            className={`text-[10px] px-2 py-0.2 rounded-full font-bold mt-1 inline-block ${
+                              c.warehouse === "KARACHI"
+                                ? "bg-blue-100 text-spd-blue dark:bg-blue-950/60 dark:text-blue-400"
+                                : "bg-red-100 text-spd-red dark:bg-red-950/60 dark:text-red-400"
+                            }`}
+                          >
+                            {c.warehouse || "LAHORE"} HUB
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                            <Truck className="w-3.5 h-3.5 text-slate-400" />
+                            {c.vehicleNumber || c.vehicle?.vehicleNumber || "Unassigned"}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            Driver: {c.driverName || c.driver?.name || "Unassigned"}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-xs font-black text-slate-900 dark:text-white">
+                          {formatCurrency(c.totalAmount)}
+                        </p>
+                        <p className="text-[10px] text-emerald-600 font-semibold">
+                          Paid: {formatCurrency(c.paidAmount)}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-xs font-black ${
+                            c.remainingBalance > 0 ? "text-amber-600" : "text-emerald-600"
+                          }`}
+                        >
+                          {formatCurrency(c.remainingBalance)}
+                        </span>
+                        <p className="text-[10px] uppercase font-bold text-slate-400">{c.paymentStatus}</p>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${
+                            c.shipmentStatus === "DELIVERED"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                              : c.shipmentStatus === "IN_TRANSIT" || c.shipmentStatus === "DRIVER_ON_THE_WAY"
+                              ? "bg-blue-100 text-spd-blue dark:bg-blue-950/60 dark:text-blue-400"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400"
+                          }`}
+                        >
+                          {c.shipmentStatus.replace(/_/g, " ")}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 text-xs font-semibold gap-1"
+                            title="View Shipment Details & Contacts"
+                            onClick={() => setViewDetailsBilty(c)}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="hidden xl:inline">Details</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 rounded-lg text-blue-600 hover:text-blue-900 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-950/50 text-xs font-semibold gap-1"
+                            title="Edit Bilty & Assignments"
+                            onClick={() => handleOpenEdit(c)}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span className="hidden xl:inline">Edit</span>
+                          </Button>
+                          {(() => {
+                            const targetPhone = c.receiver?.whatsapp || c.receiverPhone || c.receiver?.phone || c.customer?.whatsapp || c.customer?.phone;
+                            if (!targetPhone) return null;
+                            const msg = getBiltyTrackingWhatsAppMessage({
+                              biltyNumber: c.biltyNumber,
+                              trackingId: c.trackingId,
+                              status: c.shipmentStatus,
+                              origin: c.origin,
+                              destination: c.destination,
+                            });
+                            return (
+                              <a
+                                href={buildWhatsAppUrl(targetPhone, msg)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
+                                title="WhatsApp Customer / Consignee"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                              </a>
+                            );
+                          })()}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 rounded-lg text-spd-blue hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                            title="Print Bilty Voucher"
+                            onClick={() => setPrintBilty(c)}
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                            title="Delete Bilty"
+                            onClick={() => {
+                              setDeletingBilty(c);
+                              setDeleteStep(1);
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2.5 rounded-lg text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800 text-xs font-bold gap-1 shadow-sm"
+                            title="Update Shipment Status"
+                            onClick={() => {
+                              setStatusModalBilty(c);
+                              setStatusUpdate({
+                                shipmentStatus: c.shipmentStatus,
+                                location: `${c.destination} Terminal`,
+                                statusNote: "",
+                                receivedBy: c.receiverName || "",
+                                deliveryDate: new Date().toISOString().slice(0, 10),
+                              });
+                            }}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Update Status</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* MODAL 1: CREATE NEW BILTY */}

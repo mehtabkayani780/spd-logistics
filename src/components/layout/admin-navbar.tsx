@@ -104,13 +104,22 @@ export function AdminNavbar({ onMenuClick, title = "Dashboard" }: AdminNavbarPro
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-md px-4 sm:px-6 shadow-sm glass">
-      <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-2 sm:gap-4 border-b bg-background/80 backdrop-blur-md px-3 sm:px-6 shadow-sm glass">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden h-10 w-10 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-accent shrink-0"
+        onClick={onMenuClick}
+        aria-label="Open mobile menu"
+      >
         <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle Menu</span>
       </Button>
 
-      <div className="flex-1 flex items-center gap-4">
+      <div className="flex-1 flex items-center gap-2 sm:gap-4 min-w-0">
+        <span className="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-spd-red to-spd-blue uppercase sm:hidden truncate">
+          SPD Logistics
+        </span>
         <h1 className="text-lg font-semibold truncate hidden sm:block">{title}</h1>
       </div>
 

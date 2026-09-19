@@ -365,19 +365,19 @@ export default function UsersPage() {
             Manage authorized system accounts, assign roles (Admin, Customer, Driver, Staff), control access, and reset passwords.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           <Button
             onClick={fetchUsers}
             variant="outline"
             size="sm"
-            className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
+            className="w-full sm:w-auto rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Refresh</span>
           </Button>
           <Button
             onClick={() => setAddModalOpen(true)}
-            className="bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
+            className="w-full sm:w-auto bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2 h-10 px-4"
           >
             <Plus className="w-4 h-4" />
             <span>Add Authorized User</span>
@@ -411,14 +411,14 @@ export default function UsersPage() {
       )}
 
       {/* Filter Bar */}
-      <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div className="p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Search by name, email, phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs"
+            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs w-full"
           />
         </div>
 
@@ -426,32 +426,32 @@ export default function UsersPage() {
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex-1 sm:flex-initial min-w-[120px]"
           >
             <option value="ALL">All Roles</option>
             <option value="SUPER_ADMIN">Super Admin</option>
             <option value="ADMIN">Admin</option>
-            <option value="STAFF">Staff / Operator</option>
-            <option value="CUSTOMER">Customer / Dealer</option>
-            <option value="DRIVER">Fleet Driver</option>
+            <option value="STAFF">Staff</option>
+            <option value="CUSTOMER">Customer</option>
+            <option value="DRIVER">Driver</option>
           </select>
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex-1 sm:flex-initial min-w-[120px]"
           >
             <option value="ALL">All Statuses</option>
-            <option value="ACTIVE">Active Accounts</option>
-            <option value="INACTIVE">Inactive / Suspended</option>
-            <option value="DELETED">Archived / Deleted</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+            <option value="BLOCKED">Blocked</option>
           </select>
         </div>
       </div>
 
       {loading ? (
-        <div className="p-16 text-center space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-spd-red" />
+        <div className="p-12 text-center flex flex-col items-center justify-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-spd-red" />
           <p className="text-xs text-slate-500 font-medium">Loading user accounts...</p>
         </div>
       ) : users.length === 0 ? (
@@ -462,7 +462,7 @@ export default function UsersPage() {
         />
       ) : (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-          <Table>
+          <Table className="min-w-[850px]">
             <TableHeader className="bg-slate-50/80 dark:bg-slate-800/50">
               <TableRow>
                 <TableHead className="font-bold text-xs">Name & Identity</TableHead>

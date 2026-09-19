@@ -29,6 +29,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -108,6 +109,11 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
     return () => window.removeEventListener("spd-profile-updated", handleProfileUpdated);
   }, []);
 
+  // Automatically close mobile sidebar on navigation
+  useEffect(() => {
+    setMobileOpen?.(false);
+  }, [pathname, setMobileOpen]);
+
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
     localStorage.setItem("spd_sidebar_collapsed", String(!collapsed));
@@ -118,8 +124,8 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   }
 
   const sidebarClasses = cn(
-    "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-background transition-all duration-300",
-    collapsed ? "w-20" : "w-64",
+    "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-background transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none w-72 sm:w-64",
+    collapsed ? "lg:w-20" : "lg:w-64",
     mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:static"
   );
 
@@ -127,13 +133,17 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
     <>
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden transition-opacity"
           onClick={() => setMobileOpen?.(false)}
         />
       )}
       <aside className={sidebarClasses}>
-        <div className="flex h-16 items-center justify-between px-4 border-b">
-          <Link href="/admin/dashboard" className={cn("flex items-center gap-2", collapsed && "justify-center w-full")}>
+        <div className="flex h-16 items-center justify-between px-4 border-b shrink-0">
+          <Link
+            href="/admin/dashboard"
+            onClick={() => setMobileOpen?.(false)}
+            className={cn("flex items-center gap-2", collapsed && "lg:justify-center lg:w-full")}
+          >
             <img
               src="/images/spd-logo.png"
               alt="SPD Logistics"
@@ -142,17 +152,19 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                 (e.target as HTMLImageElement).src = '/images/spd-logo.jpg';
               }}
             />
-            {!collapsed && (
-              <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-spd-red to-spd-blue uppercase tracking-wider">
-                SPD Logistics
-              </span>
-            )}
+            <span className={cn("text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-spd-red to-spd-blue uppercase tracking-wider", collapsed && "lg:hidden")}>
+              SPD Logistics
+            </span>
           </Link>
-          {!collapsed && (
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileOpen?.(false)}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden h-9 w-9 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            onClick={() => setMobileOpen?.(false)}
+          >
+            <X className="h-5 w-5" />
+            <span className="sr-only">Close sidebar</span>
+          </Button>
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 scrollbar-hide">

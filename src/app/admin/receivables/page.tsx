@@ -289,16 +289,16 @@ export default function ReceivablesPage() {
           title="Receivables & Customer Ledgers"
           description="Track money owed by customers, bilty-wise balances, payments, and outstanding credits."
         >
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="gap-1.5">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="w-full sm:w-auto gap-1.5">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="w-full sm:w-auto gap-1.5">
               <Download className="h-4 w-4" />
               Export CSV
             </Button>
-            <Button variant="default" size="sm" onClick={handlePrint} className="bg-spd-blue hover:bg-blue-800 text-white gap-1.5">
+            <Button variant="default" size="sm" onClick={handlePrint} className="w-full sm:w-auto bg-spd-blue hover:bg-blue-800 text-white gap-1.5">
               <Printer className="h-4 w-4" />
               Print Report
             </Button>
@@ -394,7 +394,7 @@ export default function ReceivablesPage() {
       ) : (
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[850px]">
               <TableHeader>
                 <TableRow className="bg-muted/40">
                   <TableHead className="font-bold">Customer / Dealer</TableHead>

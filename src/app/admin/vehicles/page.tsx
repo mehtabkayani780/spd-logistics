@@ -216,7 +216,7 @@ export default function VehiclesPage() {
         </div>
         <Button
           onClick={() => setAddModalOpen(true)}
-          className="bg-spd-blue hover:bg-spd-blueHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
+          className="w-full sm:w-auto bg-spd-blue hover:bg-spd-blueHover text-white font-bold text-xs rounded-xl shadow-md gap-2 h-10 px-4 shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Register Vehicle</span>
@@ -224,21 +224,21 @@ export default function VehiclesPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div className="p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Search vehicle #, model, route, location..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs"
+            className="pl-9 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs w-full"
           />
         </div>
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            className="flex-1 sm:flex-initial h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-[130px]"
           >
             <option value="">All Statuses</option>
             <option value="AVAILABLE">Available</option>
@@ -250,7 +250,7 @@ export default function VehiclesPage() {
             variant="ghost"
             size="icon"
             onClick={fetchVehicles}
-            className="h-10 w-10 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            className="h-10 w-10 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white shrink-0"
           >
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -271,7 +271,7 @@ export default function VehiclesPage() {
         />
       ) : (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-          <Table>
+          <Table className="min-w-[850px]">
             <TableHeader className="bg-slate-50/70 dark:bg-slate-800/50">
               <TableRow>
                 <TableHead className="text-xs font-bold">Plate / Number</TableHead>

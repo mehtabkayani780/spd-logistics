@@ -185,7 +185,7 @@ export default function PaymentsPage() {
         </div>
         <Button
           onClick={() => setAddPaymentOpen(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md gap-2"
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md gap-2 h-10 px-4 shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Record Payment Receipt</span>
@@ -201,11 +201,11 @@ export default function PaymentsPage() {
         <EmptyState
           icon={CreditCard}
           title="No payments recorded"
-          description="Record freight payments received from shippers, consignees, or customer accounts."
+          description="Record customer payments against consignments or account ledgers."
         />
       ) : (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-          <Table>
+          <Table className="min-w-[750px]">
             <TableHeader className="bg-slate-50/70 dark:bg-slate-800/50">
               <TableRow>
                 <TableHead className="text-xs font-bold">Date & Reference</TableHead>

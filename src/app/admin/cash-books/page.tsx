@@ -598,14 +598,14 @@ export default function CashBooksPage() {
             Strictly segregated financial accounts: Hammad Cash Book Lahore & Hammad Cash Book Karachi with running balances.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           <Button
             onClick={() => {
               fetchDeletedBooks();
               setDeletedBooksModalOpen(true);
             }}
             variant="outline"
-            className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
+            className="w-full sm:w-auto rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
             title="View and restore deleted cash books"
           >
             <Archive className="w-4 h-4 text-slate-500" />
@@ -619,7 +619,7 @@ export default function CashBooksPage() {
           <Button
             onClick={() => setCreateBookOpen(true)}
             variant="outline"
-            className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
+            className="w-full sm:w-auto rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
           >
             <Plus className="w-4 h-4 text-spd-blue" />
             <span>Add Cash Book</span>
@@ -627,7 +627,7 @@ export default function CashBooksPage() {
           <Button
             onClick={() => setAddTxOpen(true)}
             disabled={!selectedBook}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md gap-2"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md gap-2"
           >
             <Plus className="w-4 h-4" />
             <span>Record Cash Entry</span>
@@ -844,7 +844,7 @@ export default function CashBooksPage() {
             />
           ) : (
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-              <Table>
+              <Table className="min-w-[850px]">
                 <TableHeader className="bg-slate-50/70 dark:bg-slate-800/50">
                   <TableRow>
                     <TableHead className="text-xs font-bold">Date & Voucher #</TableHead>

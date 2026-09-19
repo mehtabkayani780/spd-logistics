@@ -91,16 +91,27 @@ export default async function TrackingPage() {
           <h3 className="text-lg font-medium">Recent Shipments</h3>
           <div className="grid gap-4">
             {consignments.map((c) => (
-              <div key={c.id} className="p-4 border rounded-lg bg-card">
-                <div className="flex justify-between items-start">
+              <div key={c.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-card hover:border-spd-blue/40 transition-all shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h4 className="font-semibold">{c.trackingId}</h4>
-                    <p className="text-sm text-muted-foreground">{c.origin} to {c.destination}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white font-mono">{c.trackingId}</h4>
+                      {c.biltyNumber && (
+                        <span className="text-xs text-slate-400 font-mono">({c.biltyNumber})</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 font-medium">{c.origin} &rarr; {c.destination}</p>
                   </div>
-                  <div>
-                    <span className="px-2 py-1 bg-secondary text-secondary-foreground text-xs rounded-full">
-                      {c.shipmentStatus}
+                  <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+                    <span className="px-2.5 py-1 bg-secondary text-secondary-foreground text-[11px] font-bold rounded-full">
+                      {c.shipmentStatus.replace(/_/g, " ")}
                     </span>
+                    <Link
+                      href={`/tracking?query=${c.trackingId}`}
+                      className="text-xs text-spd-blue hover:underline font-semibold"
+                    >
+                      Track &rarr;
+                    </Link>
                   </div>
                 </div>
               </div>

@@ -544,20 +544,20 @@ export default function PayablesPage() {
           title="Payables & Operational Expenses"
           description="Manage money company owes to drivers, hired vehicles, fuel pumps, mechanics, and suppliers."
         >
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="gap-1.5">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="w-full sm:w-auto gap-1.5">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="w-full sm:w-auto gap-1.5">
               <Download className="h-4 w-4" />
               Export CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="w-full sm:w-auto gap-1.5">
               <Printer className="h-4 w-4" />
               Print
             </Button>
-            <Button variant="default" size="sm" onClick={handleOpenAdd} className="bg-spd-red hover:bg-red-700 text-white gap-1.5">
+            <Button variant="default" size="sm" onClick={handleOpenAdd} className="w-full sm:w-auto bg-spd-red hover:bg-red-700 text-white gap-1.5">
               <Plus className="h-4 w-4" />
               Add Payable
             </Button>
@@ -665,7 +665,7 @@ export default function PayablesPage() {
       ) : (
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow className="bg-muted/40">
                   <TableHead className="font-bold">Beneficiary / Vendor</TableHead>

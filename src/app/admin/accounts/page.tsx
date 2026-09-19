@@ -109,7 +109,7 @@ export default async function AccountsPage() {
             General ledgers, debit/credit postings, running balances, and customer statements.
           </p>
         </div>
-        <div className="p-4 rounded-xl bg-slate-900 text-white flex items-center gap-4">
+        <div className="p-4 rounded-xl bg-slate-900 text-white flex items-center gap-4 w-full sm:w-auto">
           <div>
             <p className="text-[10px] font-bold uppercase text-slate-400">Total Outstanding Portfolio</p>
             <p className="text-lg font-black text-amber-400 mt-0.5">{formatCurrency(totalReceivable)}</p>
@@ -118,7 +118,7 @@ export default async function AccountsPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-        <Table>
+        <Table className="min-w-[800px]">
           <TableHeader className="bg-slate-50/70 dark:bg-slate-800/50">
             <TableRow>
               <TableHead className="text-xs font-bold">Account # & Name</TableHead>
