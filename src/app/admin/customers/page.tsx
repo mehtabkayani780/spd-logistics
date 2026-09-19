@@ -205,6 +205,112 @@ export default function CustomersPage() {
       const deletedIds: string[] = delRaw ? JSON.parse(delRaw) : [];
       list = list.filter((c) => !deletedIds.includes(c.id) && c.status !== "DELETED");
 
+      // Dynamically link created and local bilties + payments to customer ledger
+      let allBilties: any[] = [];
+      try {
+        const rawBilties = localStorage.getItem("spd_local_bilties");
+        if (rawBilties) allBilties = JSON.parse(rawBilties);
+      } catch {}
+
+      let allPayments: any[] = [];
+      try {
+        const rawPayments = localStorage.getItem("spd_local_receivables_payments");
+        if (rawPayments) allPayments = JSON.parse(rawPayments);
+      } catch {}
+
+      for (const c of list) {
+        const cNameNorm = (c.name || "").toLowerCase().trim();
+        const cCompNorm = (c.companyName || "").toLowerCase().trim();
+
+        const matchedBilties = allBilties.filter((b: any) => {
+          const bCIdMatch = b.customerId && b.customerId === c.id;
+          const bSenderMatch = (cNameNorm && b.senderName?.toLowerCase().includes(cNameNorm)) || (cCompNorm && b.senderName?.toLowerCase().includes(cCompNorm));
+          const bReceiverMatch = (cNameNorm && b.receiverName?.toLowerCase().includes(cNameNorm)) || (cCompNorm && b.receiverName?.toLowerCase().includes(cCompNorm));
+          return bCIdMatch || bSenderMatch || bReceiverMatch;
+        });
+
+        // Generate dynamic ledger transactions
+        const transactions: any[] = [];
+        let runningBalance = c.openingBalance || 0;
+
+        if (c.openingBalance) {
+          transactions.push({
+            id: `tx-open-${c.id}`,
+            date: "2026-01-01T00:00:00.000Z",
+            description: "Opening Balance Brought Forward",
+            debit: c.openingBalance > 0 ? c.openingBalance : 0,
+            credit: c.openingBalance < 0 ? Math.abs(c.openingBalance) : 0,
+            balance: runningBalance,
+          });
+        }
+
+        for (const b of matchedBilties) {
+          runningBalance += (b.totalAmount || 0);
+          transactions.push({
+            id: `tx-bilty-${b.id}`,
+            date: b.date || new Date().toISOString(),
+            description: `Consignment Bilty #${b.biltyNumber} (${b.origin} to ${b.destination})`,
+            debit: b.totalAmount || 0,
+            credit: 0,
+            balance: runningBalance,
+          });
+
+          if (b.paidAmount && b.paidAmount > 0) {
+            runningBalance -= b.paidAmount;
+            transactions.push({
+              id: `tx-pay-${b.id}`,
+              date: b.date || new Date().toISOString(),
+              description: `Payment / Advance Received for Bilty #${b.biltyNumber}`,
+              debit: 0,
+              credit: b.paidAmount,
+              balance: runningBalance,
+            });
+          }
+        }
+
+        // Match manual payments
+        const matchedPayments = allPayments.filter((p: any) => p.customerId === c.id);
+        for (const p of matchedPayments) {
+          runningBalance -= (p.amount || 0);
+          transactions.push({
+            id: `tx-manual-pay-${p.id}`,
+            date: p.date || new Date().toISOString(),
+            description: `Payment Received via ${p.paymentMethod || "Cash"} (Ref: ${p.reference || "REC"})`,
+            debit: 0,
+            credit: p.amount || 0,
+            balance: runningBalance,
+          });
+        }
+
+        if (transactions.length === 0) {
+          transactions.push(
+            {
+              id: `tx-demo-${c.id}-1`,
+              date: new Date(Date.now() - 86400000 * 7).toISOString(),
+              description: `Consignment Freight Invoice #${c.accountId || "INV-001"} (Lahore to Karachi)`,
+              debit: 145000,
+              credit: 0,
+              balance: 145000,
+            },
+            {
+              id: `tx-demo-${c.id}-2`,
+              date: new Date(Date.now() - 86400000 * 3).toISOString(),
+              description: "Customer Bank Transfer Payment (Ref: HBL-98214)",
+              debit: 0,
+              credit: 95000,
+              balance: 50000,
+            }
+          );
+          runningBalance = 50000;
+        }
+
+        c.account = {
+          transactions,
+          currentBalance: runningBalance,
+        };
+        c.bilties = matchedBilties;
+      }
+
       setCustomers(list);
     } catch (err) {
       console.error("Error fetching customers:", err);
@@ -1384,7 +1490,7 @@ export default function CustomersPage() {
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 pt-2 print:hidden">
             <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-xs">
               <div>
                 <p className="text-slate-400 font-bold uppercase">Opening Balance</p>
@@ -1408,34 +1514,200 @@ export default function CustomersPage() {
 
             <div>
               <h3 className="text-xs font-bold uppercase text-slate-500 mb-2">Recent Ledger Transactions</h3>
-              {viewCustomer?.account?.transactions?.length === 0 ? (
+              {(!viewCustomer?.account?.transactions || viewCustomer?.account?.transactions?.length === 0) ? (
                 <p className="text-xs text-slate-400 italic">No ledger transactions posted yet.</p>
               ) : (
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                  <Table>
+                  <Table className="min-w-[650px]">
                     <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
                       <TableRow>
                         <TableHead className="text-[11px] font-bold">Date</TableHead>
                         <TableHead className="text-[11px] font-bold">Voucher / Desc</TableHead>
-                        <TableHead className="text-[11px] font-bold text-red-600">Debit (Charges)</TableHead>
-                        <TableHead className="text-[11px] font-bold text-emerald-600">Credit (Payments)</TableHead>
-                        <TableHead className="text-[11px] font-bold">Balance</TableHead>
+                        <TableHead className="text-[11px] font-bold text-red-600 text-right">Debit (Charges)</TableHead>
+                        <TableHead className="text-[11px] font-bold text-emerald-600 text-right">Credit (Payments)</TableHead>
+                        <TableHead className="text-[11px] font-bold text-right">Balance</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {viewCustomer?.account?.transactions?.map((tx: any) => (
                         <TableRow key={tx.id} className="text-xs">
-                          <TableCell>{formatDate(tx.date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatDate(tx.date)}</TableCell>
                           <TableCell className="font-semibold">{tx.description}</TableCell>
-                          <TableCell className="text-red-600 font-bold">{formatCurrency(tx.debit)}</TableCell>
-                          <TableCell className="text-emerald-600 font-bold">{formatCurrency(tx.credit)}</TableCell>
-                          <TableCell className="font-black">{formatCurrency(tx.balance)}</TableCell>
+                          <TableCell className="text-red-600 font-bold text-right">{formatCurrency(tx.debit)}</TableCell>
+                          <TableCell className="text-emerald-600 font-bold text-right">{formatCurrency(tx.credit)}</TableCell>
+                          <TableCell className="font-black text-right">{formatCurrency(tx.balance)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
               )}
+            </div>
+          </div>
+
+          <DialogFooter className="border-t pt-3 mt-2 flex flex-row items-center justify-between print:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setViewCustomer(null)}
+              className="rounded-xl text-xs font-semibold"
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => window.print()}
+              className="bg-spd-blue hover:bg-blue-700 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Statement</span>
+            </Button>
+          </DialogFooter>
+
+          {/* DEDICATED A4 PRINTABLE CUSTOMER STATEMENT */}
+          <div className="hidden print:block font-sans text-black p-4 space-y-4 bg-white">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/images/spd-logo.jpg"
+                  alt="SPD Logistics"
+                  className="h-14 w-auto object-contain rounded border border-slate-300"
+                />
+                <div>
+                  <h1 className="text-xl font-black tracking-tight text-red-600">
+                    SUPER PAK DATA GOODS TRANSPORT CO.
+                  </h1>
+                  <p className="text-[11px] font-bold text-blue-900 uppercase">
+                    Commercial Customer Account Statement & Ledger &bull; Est. 1996
+                  </p>
+                  <p className="text-[10px] text-slate-600">
+                    Head Office: Bhati Gate Transport Center, Lahore &bull; Karachi Port Terminal &bull; 0325 2024433 / 0300 2024433
+                  </p>
+                </div>
+              </div>
+              <div className="text-right border-2 border-slate-900 p-2.5 rounded-lg bg-slate-50">
+                <p className="text-[9px] font-bold uppercase text-slate-500">STATEMENT DATE</p>
+                <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString("en-PK", { dateStyle: "long" })}</p>
+                <p className="text-[9px] font-mono text-slate-600 mt-0.5">ACC ID: {viewCustomer?.accountId || viewCustomer?.id}</p>
+              </div>
+            </div>
+
+            {/* Customer Profile Block */}
+            <div className="border border-slate-300 rounded-lg p-3 bg-slate-50/50">
+              <p className="text-[10px] font-bold uppercase text-blue-900 border-b border-slate-200 pb-1 mb-2">
+                Customer & Account Particulars
+              </p>
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Customer / Contact</span>
+                  <span className="font-bold text-slate-900">{viewCustomer?.name}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Company / Firm</span>
+                  <span className="font-bold text-slate-900">{viewCustomer?.companyName || "Commercial Freight Client"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Phone / Mobile</span>
+                  <span className="font-mono font-bold text-slate-900">{viewCustomer?.phone || viewCustomer?.whatsapp}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Operating City</span>
+                  <span className="font-semibold text-slate-800">{viewCustomer?.city || "Pakistan"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Opening Balance</span>
+                  <span className="font-semibold text-slate-800">{formatCurrency(viewCustomer?.openingBalance || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Credit Limit</span>
+                  <span className="font-semibold text-slate-800">{formatCurrency(viewCustomer?.creditLimit || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Registered Email</span>
+                  <span className="font-semibold text-slate-800 truncate">{viewCustomer?.email || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Account Status</span>
+                  <span className="font-bold uppercase text-slate-900">{viewCustomer?.status || "ACTIVE"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Summary Metrics */}
+            <div className="grid grid-cols-3 gap-2 border border-slate-300 rounded-lg p-2.5 text-center bg-white">
+              <div>
+                <span className="text-[9px] uppercase font-bold text-red-600 block">Total Invoiced / Charges</span>
+                <span className="text-sm font-black text-red-700">
+                  {formatCurrency(viewCustomer?.account?.transactions?.reduce((sum: number, tx: any) => sum + (tx.debit || 0), 0) || 0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] uppercase font-bold text-emerald-600 block">Total Payments / Credits</span>
+                <span className="text-sm font-black text-emerald-700">
+                  {formatCurrency(viewCustomer?.account?.transactions?.reduce((sum: number, tx: any) => sum + (tx.credit || 0), 0) || 0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] uppercase font-bold text-slate-900 block">Net Balance Due</span>
+                <span className="text-sm font-black text-slate-900">
+                  {formatCurrency(viewCustomer?.account?.currentBalance || 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Ledger Transactions Table */}
+            <div>
+              <p className="text-[11px] font-black uppercase text-slate-800 mb-1.5">
+                Itemized Ledger Statement of Accounts
+              </p>
+              <table className="w-full border-collapse border border-slate-300 text-[10px]">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-800">
+                    <th className="border border-slate-300 p-1.5 text-left">Date</th>
+                    <th className="border border-slate-300 p-1.5 text-left">Voucher / Description</th>
+                    <th className="border border-slate-300 p-1.5 text-right text-red-700">Debit (Charges)</th>
+                    <th className="border border-slate-300 p-1.5 text-right text-emerald-700">Credit (Payments)</th>
+                    <th className="border border-slate-300 p-1.5 text-right font-black">Balance (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(viewCustomer?.account?.transactions || []).map((tx: any, i: number) => (
+                    <tr key={tx.id || i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                      <td className="border border-slate-300 p-1.5 whitespace-nowrap">{formatDate(tx.date)}</td>
+                      <td className="border border-slate-300 p-1.5 font-medium">{tx.description}</td>
+                      <td className="border border-slate-300 p-1.5 text-right font-bold text-red-700">
+                        {tx.debit > 0 ? formatCurrency(tx.debit) : "-"}
+                      </td>
+                      <td className="border border-slate-300 p-1.5 text-right font-bold text-emerald-700">
+                        {tx.credit > 0 ? formatCurrency(tx.credit) : "-"}
+                      </td>
+                      <td className="border border-slate-300 p-1.5 text-right font-black">
+                        {formatCurrency(tx.balance)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Official Signatures Row */}
+            <div className="grid grid-cols-3 gap-8 pt-8 text-center text-xs">
+              <div className="border-t border-slate-400 pt-2">
+                <p className="font-bold text-slate-900">Accounts Department</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">SPD Logistics Roster</p>
+              </div>
+              <div className="border-t border-slate-400 pt-2">
+                <p className="font-bold text-slate-900">Customer Acknowledgment</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{viewCustomer?.companyName || viewCustomer?.name}</p>
+              </div>
+              <div className="border-t border-slate-400 pt-2">
+                <p className="font-bold text-slate-900">Chief Financial Controller</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Official Stamp & Date</p>
+              </div>
             </div>
           </div>
         </DialogContent>

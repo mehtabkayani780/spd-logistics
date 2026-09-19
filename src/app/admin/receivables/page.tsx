@@ -141,6 +141,70 @@ export default function ReceivablesPage() {
       if (data.success) {
         let custList: CustomerReceivable[] = data.data.customers || [];
 
+        // Merge locally created bilties to ensure dynamic history
+        if (typeof window !== "undefined") {
+          try {
+            const rawBilties = localStorage.getItem("spd_local_bilties");
+            const localBilties = rawBilties ? JSON.parse(rawBilties) : [];
+            if (Array.isArray(localBilties) && localBilties.length > 0) {
+              custList = custList.map((cust) => {
+                const cNameNorm = (cust.customerName || "").toLowerCase().trim();
+                const cCompNorm = (cust.companyName || "").toLowerCase().trim();
+
+                const matchingLocal = localBilties.filter((b: any) => {
+                  const bCId = b.customerId && b.customerId === cust.customerId;
+                  const bSender = (cNameNorm && b.senderName?.toLowerCase().includes(cNameNorm)) || (cCompNorm && b.senderName?.toLowerCase().includes(cCompNorm));
+                  return bCId || bSender;
+                });
+
+                const existingBilties = [...cust.bilties];
+                for (const lb of matchingLocal) {
+                  const exists = existingBilties.some((b) => b.id === lb.id || b.biltyNumber === lb.biltyNumber);
+                  if (!exists) {
+                    const total = lb.totalAmount || 0;
+                    const paid = lb.paidAmount || 0;
+                    const rem = Math.max(0, total - paid);
+                    existingBilties.unshift({
+                      id: lb.id,
+                      biltyNumber: lb.biltyNumber,
+                      trackingId: lb.trackingId,
+                      date: lb.date,
+                      senderName: lb.senderName,
+                      receiverName: lb.receiverName,
+                      senderPhone: lb.senderPhone || "",
+                      receiverPhone: lb.receiverPhone || "",
+                      origin: lb.origin,
+                      destination: lb.destination,
+                      freight: lb.freight || total,
+                      additionalCharges: lb.additionalCharges || 0,
+                      discount: lb.discount || 0,
+                      totalAmount: total,
+                      paidAmount: paid,
+                      remainingBalance: rem,
+                      paymentStatus: rem <= 0 ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID",
+                      shipmentStatus: lb.shipmentStatus || "BOOKED",
+                    });
+                  }
+                }
+
+                const totalInv = existingBilties.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+                const totalPaid = existingBilties.reduce((sum, b) => sum + (b.paidAmount || 0), 0);
+                const totalRem = Math.max(0, totalInv - totalPaid);
+
+                return {
+                  ...cust,
+                  bilties: existingBilties,
+                  totalBiltiesCount: existingBilties.length,
+                  totalInvoicedAmount: totalInv,
+                  totalPaidAmount: totalPaid,
+                  totalOutstandingBalance: totalRem,
+                  paymentStatus: totalRem <= 0 ? "PAID" : totalPaid > 0 ? "PARTIAL" : "UNPAID",
+                };
+              });
+            }
+          } catch (e) {}
+        }
+
         // Apply locally stored payment settlements
         if (typeof window !== "undefined") {
           try {
@@ -681,19 +745,35 @@ export default function ReceivablesPage() {
       {/* DIALOG 1: Bilty-Wise Breakdown */}
       <Dialog open={viewBiltiesOpen} onOpenChange={setViewBiltiesOpen}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between text-xl font-bold">
-              <span>Bilty Breakdown — {selectedCustomer?.customerName}</span>
-              <Badge variant="outline" className="text-xs">
-                {selectedCustomer?.bilties.length || 0} Bilties
-              </Badge>
-            </DialogTitle>
-            <DialogDescription>
-              Detailed consignment breakdown and outstanding balances for {selectedCustomer?.customerName}.
-            </DialogDescription>
+          <DialogHeader className="print:hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <DialogTitle className="text-xl font-bold">
+                  Bilty Breakdown & Receivables — {selectedCustomer?.customerName}
+                </DialogTitle>
+                <DialogDescription>
+                  Detailed consignment breakdown and outstanding balances for {selectedCustomer?.customerName}.
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.print()}
+                  className="h-8 text-xs font-bold gap-1.5 rounded-xl print:hidden border-slate-300 dark:border-slate-700"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Statement</span>
+                </Button>
+                <Badge variant="outline" className="text-xs">
+                  {selectedCustomer?.bilties.length || 0} Bilties
+                </Badge>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 pt-2 print:hidden">
             <div className="grid grid-cols-3 gap-3 p-3 bg-muted/40 rounded-xl text-center">
               <div>
                 <span className="text-xs text-muted-foreground block">Total Freight</span>
@@ -789,6 +869,160 @@ export default function ReceivablesPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          </div>
+
+          <DialogFooter className="border-t pt-3 mt-2 flex flex-row items-center justify-between print:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setViewBiltiesOpen(false)}
+              className="rounded-xl text-xs font-semibold"
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => window.print()}
+              className="bg-spd-blue hover:bg-blue-700 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Statement</span>
+            </Button>
+          </DialogFooter>
+
+          {/* DEDICATED A4 PRINTABLE RECEIVABLES STATEMENT */}
+          <div className="hidden print:block font-sans text-black p-4 space-y-4 bg-white">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/images/spd-logo.jpg"
+                  alt="SPD Logistics"
+                  className="h-14 w-auto object-contain rounded border border-slate-300"
+                />
+                <div>
+                  <h1 className="text-xl font-black tracking-tight text-red-600">
+                    SUPER PAK DATA GOODS TRANSPORT CO.
+                  </h1>
+                  <p className="text-[11px] font-bold text-blue-900 uppercase">
+                    Accounts Receivable & Consignment Bilty Statement &bull; Est. 1996
+                  </p>
+                  <p className="text-[10px] text-slate-600">
+                    Bhati Gate Transport Center, Lahore &bull; Karachi Port Terminal &bull; 0325 2024433 / 0300 2024433
+                  </p>
+                </div>
+              </div>
+              <div className="text-right border-2 border-slate-900 p-2.5 rounded-lg bg-slate-50">
+                <p className="text-[9px] font-bold uppercase text-slate-500">STATEMENT DATE</p>
+                <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString("en-PK", { dateStyle: "long" })}</p>
+                <p className="text-[9px] font-mono text-slate-600 mt-0.5">CUST REF: {selectedCustomer?.customerId}</p>
+              </div>
+            </div>
+
+            {/* Customer Information Block */}
+            <div className="border border-slate-300 rounded-lg p-3 bg-slate-50/50">
+              <p className="text-[10px] font-bold uppercase text-blue-900 border-b border-slate-200 pb-1 mb-2">
+                Customer Receivable Profile
+              </p>
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Client / Account</span>
+                  <span className="font-bold text-slate-900">{selectedCustomer?.customerName}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Firm / Business</span>
+                  <span className="font-bold text-slate-900">{selectedCustomer?.companyName || "Commercial Freight Client"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Phone Contact</span>
+                  <span className="font-mono font-bold text-slate-900">{selectedCustomer?.phone}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Terminal Hub / City</span>
+                  <span className="font-semibold text-slate-800">{selectedCustomer?.city || "Nationwide"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Receivables Summary Metrics */}
+            <div className="grid grid-cols-3 gap-2 border border-slate-300 rounded-lg p-2.5 text-center bg-white">
+              <div>
+                <span className="text-[9px] uppercase font-bold text-slate-600 block">Total Invoiced Freight</span>
+                <span className="text-sm font-black text-slate-900">
+                  {formatCurrency(selectedCustomer?.totalInvoicedAmount || 0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] uppercase font-bold text-emerald-600 block">Settled / Paid Advance</span>
+                <span className="text-sm font-black text-emerald-700">
+                  {formatCurrency(selectedCustomer?.totalPaidAmount || 0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] uppercase font-bold text-red-600 block">Outstanding Receivable</span>
+                <span className="text-sm font-black text-red-700">
+                  {formatCurrency(selectedCustomer?.totalOutstandingBalance || 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Bilty Breakdown Table */}
+            <div>
+              <p className="text-[11px] font-black uppercase text-slate-800 mb-1.5">
+                Consignment Bilty Itemized Ledger Breakdown
+              </p>
+              <table className="w-full border-collapse border border-slate-300 text-[10px]">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-800">
+                    <th className="border border-slate-300 p-1.5 text-left">Bilty / Tracking #</th>
+                    <th className="border border-slate-300 p-1.5 text-left">Date</th>
+                    <th className="border border-slate-300 p-1.5 text-left">Receiver & Route</th>
+                    <th className="border border-slate-300 p-1.5 text-right">Freight (PKR)</th>
+                    <th className="border border-slate-300 p-1.5 text-right">Paid (PKR)</th>
+                    <th className="border border-slate-300 p-1.5 text-right font-black text-red-700">Balance</th>
+                    <th className="border border-slate-300 p-1.5 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(selectedCustomer?.bilties || []).map((b: any, i: number) => (
+                    <tr key={b.id || i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                      <td className="border border-slate-300 p-1.5 font-mono font-bold text-red-700">
+                        {b.biltyNumber}
+                        <div className="text-[9px] text-slate-500 font-normal">{b.trackingId}</div>
+                      </td>
+                      <td className="border border-slate-300 p-1.5 whitespace-nowrap">{formatDate(b.date)}</td>
+                      <td className="border border-slate-300 p-1.5">
+                        <div className="font-semibold text-slate-900">{b.receiverName}</div>
+                        <div className="text-[9px] text-slate-500">{b.origin} &rarr; {b.destination}</div>
+                      </td>
+                      <td className="border border-slate-300 p-1.5 text-right font-medium">{formatCurrency(b.totalAmount)}</td>
+                      <td className="border border-slate-300 p-1.5 text-right font-semibold text-emerald-700">{formatCurrency(b.paidAmount)}</td>
+                      <td className="border border-slate-300 p-1.5 text-right font-black text-red-700">{formatCurrency(b.remainingBalance)}</td>
+                      <td className="border border-slate-300 p-1.5 text-center font-bold uppercase">{b.paymentStatus}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Official Signatures Row */}
+            <div className="grid grid-cols-3 gap-8 pt-8 text-center text-xs">
+              <div className="border-t border-slate-400 pt-2">
+                <p className="font-bold text-slate-900">Accounts & Billing Officer</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">SPD Logistics Roster</p>
+              </div>
+              <div className="border-t border-slate-400 pt-2">
+                <p className="font-bold text-slate-900">Customer Acknowledgment</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{selectedCustomer?.companyName || selectedCustomer?.customerName}</p>
+              </div>
+              <div className="border-t border-slate-400 pt-2">
+                <p className="font-bold text-slate-900">Chief Auditor Stamp</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Official Stamp & Date</p>
+              </div>
             </div>
           </div>
         </DialogContent>

@@ -155,17 +155,52 @@
 
   /* Print styles */
   @media print {
-    .no-print {
+    @page {
+      size: A4 portrait;
+      margin: 8mm;
+    }
+
+    .no-print,
+    .print\:hidden {
       display: none !important;
     }
 
-    .print-only {
+    .print-only,
+    .print\:block {
       display: block !important;
     }
 
     body {
       background: white !important;
       color: black !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Reset modal dialog container in print so it prints full page without clipping or scrollbars */
+    [role="dialog"],
+    [data-radix-portal] > div,
+    [data-radix-portal] div[role="dialog"] {
+      position: static !important;
+      max-height: none !important;
+      max-width: 100% !important;
+      width: 100% !important;
+      height: auto !important;
+      overflow: visible !important;
+      box-shadow: none !important;
+      border: none !important;
+      background: white !important;
+      color: black !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      transform: none !important;
+    }
+
+    /* Hide background backdrop overlay */
+    div[data-state="open"][aria-hidden="true"],
+    .fixed.inset-0.bg-black\/80,
+    .fixed.inset-0.bg-background\/80 {
+      display: none !important;
     }
   }
 
