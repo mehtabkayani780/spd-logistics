@@ -52,9 +52,8 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState("");
 
   // Modals state
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editCustomer, setEditCustomer] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [viewCustomer, setViewCustomer] = useState<any>(null);
   const [resetPasswordCustomer, setResetPasswordCustomer] = useState<any>(null);
   const [deleteCustomer, setDeleteCustomer] = useState<any>(null);
@@ -65,16 +64,11 @@ export default function CustomersPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // Photo state for Add Customer
-  const [addPhotoFile, setAddPhotoFile] = useState<File | null>(null);
-  const [addPhotoPreview, setAddPhotoPreview] = useState<string>("");
-  const addFileInputRef = React.useRef<HTMLInputElement>(null);
-
-  // Photo state for Edit Customer
-  const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null);
-  const [editPhotoPreview, setEditPhotoPreview] = useState<string>("");
-  const [editPhotoRemoved, setEditPhotoRemoved] = useState<boolean>(false);
-  const editFileInputRef = React.useRef<HTMLInputElement>(null);
+  // Photo state for Customer Modal
+  const [customerPhotoFile, setCustomerPhotoFile] = useState<File | null>(null);
+  const [customerPhotoPreview, setCustomerPhotoPreview] = useState<string>("");
+  const [customerPhotoRemoved, setCustomerPhotoRemoved] = useState<boolean>(false);
+  const customerFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const validateImageFile = (file: File): string | null => {
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -89,8 +83,8 @@ export default function CustomersPage() {
     return null;
   };
 
-  // New Customer Form State
-  const [formData, setFormData] = useState({
+  const initialCustomerForm = {
+    id: "",
     name: "",
     companyName: "",
     phone: "",
@@ -106,25 +100,61 @@ export default function CustomersPage() {
     openingBalance: "0",
     photo: "",
     notes: "",
-  });
-
-  // Edit Customer Form State
-  const [editFormData, setEditFormData] = useState({
-    id: "",
-    name: "",
-    companyName: "",
-    phone: "",
-    whatsapp: "",
-    cnic: "",
-    businessRef: "",
-    address: "",
-    city: "Lahore",
-    warehouse: "LAHORE",
-    creditLimit: "",
-    photo: "",
-    notes: "",
     status: "ACTIVE",
-  });
+  };
+
+  const [customerForm, setCustomerForm] = useState(initialCustomerForm);
+
+  const openAddModal = () => {
+    setEditingCustomer(null);
+    setCustomerForm(initialCustomerForm);
+    setCustomerPhotoFile(null);
+    setCustomerPhotoPreview("");
+    setCustomerPhotoRemoved(false);
+    setFormError("");
+    if (customerFileInputRef.current) customerFileInputRef.current.value = "";
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (c: any) => {
+    setEditingCustomer(c);
+    const photoUrl = c.photo || c.user?.avatar || "";
+    setCustomerForm({
+      id: c.id,
+      name: c.name || "",
+      companyName: c.companyName || "",
+      phone: c.phone || "",
+      whatsapp: c.whatsapp || "",
+      email: c.email || c.user?.email || "",
+      password: "",
+      cnic: c.cnic || "",
+      businessRef: c.businessRef || "",
+      address: c.address || "",
+      city: c.city || "Lahore",
+      warehouse: c.warehouse || "LAHORE",
+      creditLimit: c.creditLimit !== null && c.creditLimit !== undefined ? String(c.creditLimit) : "",
+      openingBalance: c.openingBalance !== null && c.openingBalance !== undefined ? String(c.openingBalance) : "0",
+      photo: photoUrl,
+      notes: c.notes || "",
+      status: c.status || "ACTIVE",
+    });
+    setCustomerPhotoPreview(photoUrl);
+    setCustomerPhotoFile(null);
+    setCustomerPhotoRemoved(false);
+    setFormError("");
+    if (customerFileInputRef.current) customerFileInputRef.current.value = "";
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingCustomer(null);
+    setCustomerPhotoFile(null);
+    setCustomerPhotoPreview("");
+    setCustomerPhotoRemoved(false);
+    setFormError("");
+    if (customerFileInputRef.current) customerFileInputRef.current.value = "";
+  };
 
   const LOCAL_CUSTOMERS_KEY = "spd_local_customers";
   const LOCAL_DELETED_CUSTOMERS_KEY = "spd_local_deleted_customers";
@@ -333,131 +363,80 @@ export default function CustomersPage() {
     });
   };
 
-  const handleCreateCustomer = async (e: React.FormEvent) => {
+  const handleSubmitModal = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError("");
 
     try {
-      let photoUrl = "";
-      if (addPhotoFile) {
-        setUploadingPhoto(true);
-        photoUrl = await handleUploadPhoto(addPhotoFile);
-      }
-
-      const openBal = parseFloat(formData.openingBalance) || 0;
-      const credLim = parseFloat(formData.creditLimit) || 0;
-      const newCust = {
-        id: `c_loc_${Date.now()}`,
-        name: formData.name,
-        companyName: formData.companyName || null,
-        phone: formData.phone,
-        whatsapp: formData.whatsapp || formData.phone,
-        email: formData.email || `${formData.name.toLowerCase().replace(/\s+/g, "")}@spdcustomer.com`,
-        cnic: formData.cnic || null,
-        businessRef: formData.businessRef || null,
-        address: formData.address || null,
-        city: formData.city || "Lahore",
-        warehouse: formData.warehouse || "LAHORE",
-        creditLimit: credLim,
-        openingBalance: openBal,
-        photo: photoUrl || null,
-        notes: formData.notes || null,
-        status: "ACTIVE",
-        user: { email: formData.email, status: "ACTIVE" },
-        account: { id: `acc_${Date.now()}`, balance: openBal, transactions: [] },
-        _count: { consignmentsAsCustomer: 0, payments: 0 },
-        createdAt: new Date().toISOString(),
-      };
-
-      // Save to localStorage immediately
-      saveLocalCustomer(newCust);
-
-      // Prepend to state immediately
-      setCustomers((prev) => [newCust, ...prev]);
-
-      // Fire background API call
-      fetch("/api/admin/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, photo: photoUrl || null }),
-      }).catch((err) => console.warn("Background customer API save:", err));
-
-      setAddModalOpen(false);
-      setAddPhotoFile(null);
-      setAddPhotoPreview("");
-      if (addFileInputRef.current) addFileInputRef.current.value = "";
-      setFormData({
-        name: "",
-        companyName: "",
-        phone: "",
-        whatsapp: "",
-        email: "",
-        password: "",
-        cnic: "",
-        businessRef: "",
-        address: "",
-        city: "Lahore",
-        warehouse: "LAHORE",
-        creditLimit: "",
-        openingBalance: "0",
-        photo: "",
-        notes: "",
-      });
-      setActionFeedback({ type: "success", text: `Customer ${newCust.name} added successfully!` });
-      setTimeout(() => setActionFeedback(null), 4000);
-    } catch (err: any) {
-      setFormError(err.message || "Failed to create customer");
-    } finally {
-      setUploadingPhoto(false);
-      setSubmitting(false);
-    }
-  };
-
-  const handleUpdateCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editCustomer) return;
-    setSubmitting(true);
-    setFormError("");
-
-    try {
-      let finalPhotoUrl = editFormData.photo;
-      if (editPhotoRemoved) {
+      let finalPhotoUrl = customerForm.photo;
+      if (customerPhotoRemoved) {
         finalPhotoUrl = "";
-      } else if (editPhotoFile) {
+      } else if (customerPhotoFile) {
         setUploadingPhoto(true);
-        finalPhotoUrl = await handleUploadPhoto(editPhotoFile);
+        finalPhotoUrl = await handleUploadPhoto(customerPhotoFile);
       }
 
-      const updated = {
-        ...editCustomer,
-        ...editFormData,
-        photo: finalPhotoUrl || null,
-      };
+      if (editingCustomer) {
+        const updated = {
+          ...editingCustomer,
+          ...customerForm,
+          photo: finalPhotoUrl || null,
+        };
 
-      // Save locally immediately
-      saveLocalCustomer(updated);
+        saveLocalCustomer(updated);
+        setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
 
-      // Update state immediately
-      setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        fetch("/api/admin/customers", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...customerForm, photo: finalPhotoUrl || null }),
+        }).catch(() => {});
 
-      // Background API call
-      fetch("/api/admin/customers", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...editFormData, photo: finalPhotoUrl || null }),
-      }).catch(() => {});
+        setActionFeedback({ type: "success", text: `Customer ${customerForm.name} updated successfully!` });
+        setTimeout(() => setActionFeedback(null), 4000);
+        closeModal();
+      } else {
+        const openBal = parseFloat(customerForm.openingBalance) || 0;
+        const credLim = parseFloat(customerForm.creditLimit) || 0;
+        const newCust = {
+          id: `c_loc_${Date.now()}`,
+          name: customerForm.name,
+          companyName: customerForm.companyName || null,
+          phone: customerForm.phone,
+          whatsapp: customerForm.whatsapp || customerForm.phone,
+          email: customerForm.email || `${customerForm.name.toLowerCase().replace(/\s+/g, "")}@spdcustomer.com`,
+          cnic: customerForm.cnic || null,
+          businessRef: customerForm.businessRef || null,
+          address: customerForm.address || null,
+          city: customerForm.city || "Lahore",
+          warehouse: customerForm.warehouse || "LAHORE",
+          creditLimit: credLim,
+          openingBalance: openBal,
+          photo: finalPhotoUrl || null,
+          notes: customerForm.notes || null,
+          status: "ACTIVE",
+          user: { email: customerForm.email, status: "ACTIVE" },
+          account: { id: `acc_${Date.now()}`, balance: openBal, transactions: [] },
+          _count: { consignmentsAsCustomer: 0, payments: 0 },
+          createdAt: new Date().toISOString(),
+        };
 
-      setEditModalOpen(false);
-      setEditCustomer(null);
-      setEditPhotoFile(null);
-      setEditPhotoPreview("");
-      setEditPhotoRemoved(false);
-      if (editFileInputRef.current) editFileInputRef.current.value = "";
-      setActionFeedback({ type: "success", text: `Customer ${editFormData.name} updated successfully!` });
-      setTimeout(() => setActionFeedback(null), 4000);
+        saveLocalCustomer(newCust);
+        setCustomers((prev) => [newCust, ...prev]);
+
+        fetch("/api/admin/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...customerForm, photo: finalPhotoUrl || null }),
+        }).catch((err) => console.warn("Background customer API save:", err));
+
+        setActionFeedback({ type: "success", text: `Customer ${newCust.name} added successfully!` });
+        setTimeout(() => setActionFeedback(null), 4000);
+        closeModal();
+      }
     } catch (err: any) {
-      setFormError(err.message || "Failed to update customer");
+      setFormError(err.message || "Failed to save customer");
     } finally {
       setUploadingPhoto(false);
       setSubmitting(false);
@@ -577,13 +556,7 @@ export default function CustomersPage() {
             <span>Export CSV</span>
           </Button>
           <Button
-            onClick={() => {
-              setAddPhotoFile(null);
-              setAddPhotoPreview("");
-              setFormError("");
-              if (addFileInputRef.current) addFileInputRef.current.value = "";
-              setAddModalOpen(true);
-            }}
+            onClick={openAddModal}
             className="w-full sm:w-auto bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -795,32 +768,7 @@ export default function CustomersPage() {
                         variant="ghost"
                         className="h-8 w-8 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
                         title="Edit Customer & Photo"
-                        onClick={() => {
-                          const photoUrl = c.photo || c.user?.avatar || "";
-                          setEditCustomer(c);
-                          setEditFormData({
-                            id: c.id,
-                            name: c.name || "",
-                            companyName: c.companyName || "",
-                            phone: c.phone || "",
-                            whatsapp: c.whatsapp || "",
-                            cnic: c.cnic || "",
-                            businessRef: c.businessRef || "",
-                            address: c.address || "",
-                            city: c.city || "Lahore",
-                            warehouse: c.warehouse || "LAHORE",
-                            creditLimit: c.creditLimit !== null && c.creditLimit !== undefined ? String(c.creditLimit) : "",
-                            photo: photoUrl,
-                            notes: c.notes || "",
-                            status: c.status || "ACTIVE",
-                          });
-                          setEditPhotoPreview(photoUrl);
-                          setEditPhotoFile(null);
-                          setEditPhotoRemoved(false);
-                          if (editFileInputRef.current) editFileInputRef.current.value = "";
-                          setFormError("");
-                          setEditModalOpen(true);
-                        }}
+                        onClick={() => openEditModal(c)}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -854,605 +802,350 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* MODAL 1: ADD CUSTOMER & LOGIN */}
-      {addModalOpen && (
+      {/* UNIFIED CUSTOMER MODAL (ADD & EDIT) */}
+      {isModalOpen && (
         <div 
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm"
-          style={{ minHeight: '100vh', WebkitOverflowScrolling: 'touch' }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-6 flex items-start justify-center"
+          style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
         >
-          <div className="flex min-h-full items-start justify-center p-3 sm:p-6 py-10">
-            <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-slate-800">
-              {/* Sticky Header */}
-              <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-spd-red" />
-                    Register New Customer / Dealer
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Enter complete party details below.</p>
+          <div className="relative w-full max-w-2xl my-4 sm:my-8 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-slate-800">
+            {/* Sticky Header */}
+            <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20">
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Building2 className={`w-5 h-5 ${editingCustomer ? "text-blue-600" : "text-spd-red"}`} />
+                  {editingCustomer ? "Edit Customer Profile" : "Register New Customer / Dealer"}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  {editingCustomer
+                    ? "Update customer profile, contact details and account parameters."
+                    : "Enter complete party details below to register customer & create portal login."}
+                </p>
+              </div>
+              <button 
+                type="button" 
+                onClick={closeModal}
+                className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-lg text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {formError && (
+              <div className="mx-4 sm:mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitModal} className="flex flex-col">
+              {/* Pure Scrollable Form Body */}
+              <div className="p-4 sm:p-6 space-y-4 bg-white dark:bg-slate-900">
+                {/* Customer Photo Upload Control */}
+                <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                  <div className={`w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 ${editingCustomer ? "border-blue-500/40" : "border-red-500/40"} bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs`}>
+                    {customerPhotoPreview || customerForm.photo ? (
+                      <img
+                        src={customerPhotoPreview || customerForm.photo}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <Users className="w-10 h-10 text-slate-400" />
+                    )}
+                    {uploadingPhoto && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1 text-center sm:text-left flex-1">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Customer Profile Photo
+                    </Label>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                      <input
+                        ref={customerFileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const err = validateImageFile(file);
+                          if (err) {
+                            setFormError(err);
+                            if (customerFileInputRef.current) customerFileInputRef.current.value = "";
+                            return;
+                          }
+                          setFormError("");
+                          setCustomerPhotoFile(file);
+                          setCustomerPhotoRemoved(false);
+                          const objectUrl = URL.createObjectURL(file);
+                          setCustomerPhotoPreview(objectUrl);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => customerFileInputRef.current?.click()}
+                        className="h-8 rounded-xl text-xs font-bold gap-1.5 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
+                      >
+                        <Camera className={`w-3.5 h-3.5 ${editingCustomer ? "text-blue-600" : "text-red-600"}`} />
+                        <span>{customerPhotoPreview || customerForm.photo ? "Change Photo" : "Upload Photo"}</span>
+                      </Button>
+                      {(customerPhotoPreview || customerForm.photo) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setCustomerPhotoFile(null);
+                            setCustomerPhotoPreview("");
+                            setCustomerPhotoRemoved(true);
+                            setCustomerForm({ ...customerForm, photo: "" });
+                            if (customerFileInputRef.current) customerFileInputRef.current.value = "";
+                          }}
+                          className="h-8 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400">JPG, JPEG, PNG, WebP up to 5MB.</p>
+                  </div>
                 </div>
-                <button 
-                  type="button" 
-                  onClick={() => setAddModalOpen(false)}
-                  className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-lg text-lg font-bold"
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Customer / Dealer Name *
+                    </Label>
+                    <Input
+                      required
+                      placeholder="e.g. M. Tariq / Star Trading"
+                      value={customerForm.name}
+                      onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Company / Firm Name
+                    </Label>
+                    <Input
+                      placeholder="e.g. Star Goods & Trading Co."
+                      value={customerForm.companyName}
+                      onChange={(e) => setCustomerForm({ ...customerForm, companyName: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Phone Number *
+                    </Label>
+                    <Input
+                      required
+                      placeholder="03001234567"
+                      value={customerForm.phone}
+                      onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      WhatsApp Number
+                    </Label>
+                    <Input
+                      placeholder="03001234567"
+                      value={customerForm.whatsapp}
+                      onChange={(e) => setCustomerForm({ ...customerForm, whatsapp: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  {!editingCustomer ? (
+                    <>
+                      {/* Login Credentials created manually by Admin */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold uppercase text-spd-blue">
+                          Login Email *
+                        </Label>
+                        <Input
+                          required
+                          type="email"
+                          placeholder="dealer@company.com"
+                          value={customerForm.email}
+                          onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
+                          className="rounded-xl h-10 text-xs border-blue-200 dark:border-blue-900"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold uppercase text-spd-blue">
+                          Login Password *
+                        </Label>
+                        <Input
+                          required
+                          type="password"
+                          placeholder="Assign a secure password"
+                          value={customerForm.password}
+                          onChange={(e) => setCustomerForm({ ...customerForm, password: e.target.value })}
+                          className="rounded-xl h-10 text-xs border-blue-200 dark:border-blue-900"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                        Account Status
+                      </Label>
+                      <select
+                        value={customerForm.status}
+                        onChange={(e) => setCustomerForm({ ...customerForm, status: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                      >
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      CNIC / NTN Number
+                    </Label>
+                    <Input
+                      placeholder="35201-XXXXXXX-X"
+                      value={customerForm.cnic}
+                      onChange={(e) => setCustomerForm({ ...customerForm, cnic: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Assigned Warehouse Hub
+                    </Label>
+                    <select
+                      value={customerForm.warehouse}
+                      onChange={(e) => setCustomerForm({ ...customerForm, warehouse: e.target.value })}
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                    >
+                      <option value="LAHORE">Lahore Central Hub</option>
+                      <option value="KARACHI">Karachi South Hub</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      City
+                    </Label>
+                    <Input
+                      placeholder="Lahore / Karachi / Multan..."
+                      value={customerForm.city}
+                      onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Credit Limit (PKR)
+                    </Label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 100000"
+                      value={customerForm.creditLimit}
+                      onChange={(e) => setCustomerForm({ ...customerForm, creditLimit: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  {!editingCustomer ? (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                        Opening Balance (PKR)
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={customerForm.openingBalance}
+                        onChange={(e) => setCustomerForm({ ...customerForm, openingBalance: e.target.value })}
+                        className="rounded-xl h-10 text-xs"
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Business Reference / Notes
+                    </Label>
+                    <Input
+                      placeholder="Reference person or terms"
+                      value={customerForm.notes || customerForm.businessRef}
+                      onChange={(e) =>
+                        setCustomerForm({
+                          ...customerForm,
+                          notes: e.target.value,
+                          businessRef: e.target.value,
+                        })
+                      }
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                      Address
+                    </Label>
+                    <Input
+                      placeholder="Shop / office / godown address"
+                      value={customerForm.address}
+                      onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sticky Footer */}
+              <div className="p-4 bg-gray-50 dark:bg-slate-800/90 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 sticky bottom-0 z-20">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-xs"
                 >
-                  ✕
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`px-6 py-2.5 rounded-xl text-white font-semibold shadow-md active:scale-95 transition-all text-xs flex items-center gap-2 disabled:opacity-50 ${
+                    editingCustomer ? "bg-blue-600 hover:bg-blue-700" : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  {submitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : editingCustomer ? (
+                    <Edit className="w-4 h-4" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>{editingCustomer ? "Save Changes" : "Create Customer"}</span>
                 </button>
               </div>
-
-              {formError && (
-                <div className="mx-4 sm:mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
-                  {formError}
-                </div>
-              )}
-
-              <form onSubmit={handleCreateCustomer} className="flex flex-col">
-                {/* Form Body - Completely Normal Scrolling */}
-                <div className="p-4 sm:p-6 space-y-4">
-            {/* Customer Photo Upload Control */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
-              <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-red-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
-                {addPhotoPreview || formData.photo ? (
-                  <img
-                    src={addPhotoPreview || formData.photo}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <Users className="w-10 h-10 text-slate-400" />
-                )}
-                {uploadingPhoto && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1 text-center sm:text-left flex-1">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Customer Profile Photo
-                </Label>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-                  <input
-                    ref={addFileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const err = validateImageFile(file);
-                      if (err) {
-                        setFormError(err);
-                        if (addFileInputRef.current) addFileInputRef.current.value = "";
-                        return;
-                      }
-                      setFormError("");
-                      setAddPhotoFile(file);
-                      const objectUrl = URL.createObjectURL(file);
-                      setAddPhotoPreview(objectUrl);
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => addFileInputRef.current?.click()}
-                    className="h-8 rounded-xl text-xs font-bold gap-1.5 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-red-600" />
-                    <span>{addPhotoPreview || formData.photo ? "Change Photo" : "Upload Photo"}</span>
-                  </Button>
-                  {(addPhotoPreview || formData.photo) && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setAddPhotoFile(null);
-                        setAddPhotoPreview("");
-                        setFormData({ ...formData, photo: "" });
-                        if (addFileInputRef.current) addFileInputRef.current.value = "";
-                      }}
-                      className="h-8 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove</span>
-                    </Button>
-                  )}
-                </div>
-                <p className="text-[10px] text-slate-400">JPG, JPEG, PNG, WebP up to 5MB.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Customer / Dealer Name *
-                </Label>
-                <Input
-                  required
-                  placeholder="e.g. M. Tariq / Star Trading"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Company / Firm Name
-                </Label>
-                <Input
-                  placeholder="e.g. Star Goods & Trading Co."
-                  value={formData.companyName}
-                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Phone Number *
-                </Label>
-                <Input
-                  required
-                  placeholder="03001234567"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  WhatsApp Number
-                </Label>
-                <Input
-                  placeholder="03001234567"
-                  value={formData.whatsapp}
-                  onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              {/* Login Credentials created manually by Admin */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-spd-blue">
-                  Login Email *
-                </Label>
-                <Input
-                  required
-                  type="email"
-                  placeholder="dealer@company.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="rounded-xl h-10 text-xs border-blue-200 dark:border-blue-900"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-spd-blue">
-                  Login Password *
-                </Label>
-                <Input
-                  required
-                  type="password"
-                  placeholder="Assign a secure password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="rounded-xl h-10 text-xs border-blue-200 dark:border-blue-900"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  CNIC / NTN Number
-                </Label>
-                <Input
-                  placeholder="35201-XXXXXXX-X"
-                  value={formData.cnic}
-                  onChange={(e) => setFormData({ ...formData, cnic: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Assigned Warehouse Hub
-                </Label>
-                <select
-                  value={formData.warehouse}
-                  onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                >
-                  <option value="LAHORE">Lahore Central Hub</option>
-                  <option value="KARACHI">Karachi South Hub</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  City
-                </Label>
-                <Input
-                  placeholder="Lahore / Karachi / Multan..."
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Credit Limit (PKR)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 100000"
-                  value={formData.creditLimit}
-                  onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Opening Balance (PKR)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={formData.openingBalance}
-                  onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Business Reference / Notes
-                </Label>
-                <Input
-                  placeholder="Reference person or terms"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Address
-                </Label>
-                <Input
-                  placeholder="Shop / office / godown address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-              </div>
-            </div>
-
-            {/* Sticky / Visible Footer */}
-            <div className="p-4 bg-gray-50 dark:bg-slate-800/90 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 sticky bottom-0 z-20">
-              <button
-                type="button"
-                onClick={() => setAddModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md active:scale-95 transition-all text-xs flex items-center gap-2 disabled:opacity-50"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                <span>Create Customer</span>
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
-    </div>
-    )}
-
-      {/* MODAL 1B: EDIT CUSTOMER */}
-      {editModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm"
-          style={{ minHeight: '100vh', WebkitOverflowScrolling: 'touch' }}
-        >
-          <div className="flex min-h-full items-start justify-center p-3 sm:p-6 py-10">
-            <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-slate-800">
-              {/* Sticky Header */}
-              <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-blue-600" />
-                    Edit Customer Profile
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Enter complete party details below.</p>
-                </div>
-                <button 
-                  type="button" 
-                  onClick={() => setEditModalOpen(false)}
-                  className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-lg text-lg font-bold"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {formError && (
-                <div className="mx-4 sm:mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
-                  {formError}
-                </div>
-              )}
-
-              <form onSubmit={handleUpdateCustomer} className="flex flex-col">
-                {/* Form Body - Completely Normal Scrolling */}
-                <div className="p-4 sm:p-6 space-y-4">
-            {/* Customer Photo Upload & Preview */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
-              <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-blue-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
-                {editPhotoPreview ? (
-                  <img
-                    src={editPhotoPreview}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <Users className="w-10 h-10 text-slate-400" />
-                )}
-                {uploadingPhoto && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1 text-center sm:text-left flex-1">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Customer Profile Photo
-                </Label>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-                  <input
-                    ref={editFileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const err = validateImageFile(file);
-                      if (err) {
-                        setFormError(err);
-                        if (editFileInputRef.current) editFileInputRef.current.value = "";
-                        return;
-                      }
-                      setFormError("");
-                      setEditPhotoFile(file);
-                      setEditPhotoRemoved(false);
-                      const objectUrl = URL.createObjectURL(file);
-                      setEditPhotoPreview(objectUrl);
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => editFileInputRef.current?.click()}
-                    className="h-8 rounded-xl text-xs font-bold gap-1.5 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-blue-600" />
-                    <span>{editPhotoPreview ? "Change Photo" : "Upload Photo"}</span>
-                  </Button>
-                  {editPhotoPreview && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditPhotoFile(null);
-                        setEditPhotoPreview("");
-                        setEditPhotoRemoved(true);
-                        setEditFormData({ ...editFormData, photo: "" });
-                        if (editFileInputRef.current) editFileInputRef.current.value = "";
-                      }}
-                      className="h-8 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove</span>
-                    </Button>
-                  )}
-                </div>
-                <p className="text-[10px] text-slate-400">JPG, JPEG, PNG, WebP up to 5MB.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Customer / Dealer Name *
-                </Label>
-                <Input
-                  required
-                  placeholder="e.g. M. Tariq / Star Trading"
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Company / Firm Name
-                </Label>
-                <Input
-                  placeholder="e.g. Star Goods & Trading Co."
-                  value={editFormData.companyName}
-                  onChange={(e) => setEditFormData({ ...editFormData, companyName: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Phone Number *
-                </Label>
-                <Input
-                  required
-                  placeholder="03001234567"
-                  value={editFormData.phone}
-                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  WhatsApp Number
-                </Label>
-                <Input
-                  placeholder="03001234567"
-                  value={editFormData.whatsapp}
-                  onChange={(e) => setEditFormData({ ...editFormData, whatsapp: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  CNIC / NTN Number
-                </Label>
-                <Input
-                  placeholder="35201-XXXXXXX-X"
-                  value={editFormData.cnic}
-                  onChange={(e) => setEditFormData({ ...editFormData, cnic: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Business Reference / Alias
-                </Label>
-                <Input
-                  placeholder="Reference person or terms"
-                  value={editFormData.businessRef}
-                  onChange={(e) => setEditFormData({ ...editFormData, businessRef: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Assigned Warehouse Hub
-                </Label>
-                <select
-                  value={editFormData.warehouse}
-                  onChange={(e) => setEditFormData({ ...editFormData, warehouse: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                >
-                  <option value="LAHORE">Lahore Central Hub</option>
-                  <option value="KARACHI">Karachi South Hub</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  City
-                </Label>
-                <Input
-                  placeholder="Lahore / Karachi / Multan..."
-                  value={editFormData.city}
-                  onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Credit Limit (PKR)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 100000"
-                  value={editFormData.creditLimit}
-                  onChange={(e) => setEditFormData({ ...editFormData, creditLimit: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Account Status
-                </Label>
-                <select
-                  value={editFormData.status}
-                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                >
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Address
-                </Label>
-                <Input
-                  placeholder="Shop / office / godown address"
-                  value={editFormData.address}
-                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Notes
-                </Label>
-                <Input
-                  placeholder="Internal notes or billing terms"
-                  value={editFormData.notes}
-                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-              </div>
-            </div>
-
-            {/* Sticky / Visible Footer */}
-            <div className="p-4 bg-gray-50 dark:bg-slate-800/90 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 sticky bottom-0 z-20">
-              <button
-                type="button"
-                onClick={() => setEditModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md active:scale-95 transition-all text-xs flex items-center gap-2 disabled:opacity-50"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
-                <span>Save Changes</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-    )}
+      )}
 
       {/* MODAL 2: VIEW CUSTOMER LEDGER & DETAILS */}
       <Dialog open={!!viewCustomer} onOpenChange={() => setViewCustomer(null)}>
