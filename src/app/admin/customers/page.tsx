@@ -856,41 +856,38 @@ export default function CustomersPage() {
 
       {/* MODAL 1: ADD CUSTOMER & LOGIN */}
       {addModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-h-[88vh] sm:max-h-[85vh] overflow-hidden border border-gray-100 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 flex items-start justify-center">
+          <div className="relative w-full max-w-2xl my-6 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-100 dark:border-slate-800">
             {/* Modal Header */}
-            <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0 bg-white dark:bg-slate-900">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-10">
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-spd-red" />
                   Register New Customer / Dealer
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   Create customer account and login credentials. Customer can log in at the Customer Portal to track bilties and view statements.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setAddModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Close"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
             {formError && (
-              <div className="mx-4 mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800 flex-shrink-0">
+              <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleCreateCustomer} className="flex-1 flex flex-col min-h-0">
-              {/* Scrollable Body */}
-              <div
-                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 overscroll-contain"
-                style={{ maxHeight: 'calc(85vh - 130px)', WebkitOverflowScrolling: 'touch' }}
-              >
+            <form onSubmit={handleCreateCustomer} className="flex flex-col">
+              {/* Form Fields */}
+              <div className="p-6 space-y-4">
             {/* Customer Photo Upload Control */}
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
               <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-red-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
@@ -1136,27 +1133,26 @@ export default function CustomersPage() {
                   className="rounded-xl h-10 text-xs"
                 />
               </div>
-            </div>
+              </div>
             </div>
 
-            {/* Pinned Sticky Footer */}
-            <div className="p-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 flex-shrink-0">
-              <Button
+            {/* Modal Footer */}
+            <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 sticky bottom-0 z-10">
+              <button
                 type="button"
-                variant="outline"
                 onClick={() => setAddModalOpen(false)}
-                className="rounded-xl text-xs font-semibold"
+                className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-medium text-xs hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
                 disabled={submitting}
-                className="bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
+                className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
               >
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                <span>Create Customer Login</span>
-              </Button>
+                <span>Create Customer</span>
+              </button>
             </div>
           </form>
         </div>
@@ -1165,41 +1161,38 @@ export default function CustomersPage() {
 
       {/* MODAL 1B: EDIT CUSTOMER */}
       {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-h-[88vh] sm:max-h-[85vh] overflow-hidden border border-gray-100 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 flex items-start justify-center">
+          <div className="relative w-full max-w-2xl my-6 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-100 dark:border-slate-800">
             {/* Modal Header */}
-            <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0 bg-white dark:bg-slate-900">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-10">
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-blue-600" />
                   Edit Customer Profile
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   Update customer information, contact details, address, and profile photo.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setEditModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Close"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
             {formError && (
-              <div className="mx-4 mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800 flex-shrink-0">
+              <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleUpdateCustomer} className="flex-1 flex flex-col min-h-0">
-              {/* Scrollable Body */}
-              <div
-                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 overscroll-contain"
-                style={{ maxHeight: 'calc(85vh - 130px)', WebkitOverflowScrolling: 'touch' }}
-              >
+            <form onSubmit={handleUpdateCustomer} className="flex flex-col">
+              {/* Form Fields */}
+              <div className="p-6 space-y-4">
             {/* Customer Photo Upload & Preview */}
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
               <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-blue-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
@@ -1431,27 +1424,26 @@ export default function CustomersPage() {
                   className="rounded-xl h-10 text-xs"
                 />
               </div>
-            </div>
+              </div>
             </div>
 
-            {/* Pinned Sticky Footer */}
-            <div className="p-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 flex-shrink-0">
-              <Button
+            {/* Modal Footer */}
+            <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 sticky bottom-0 z-10">
+              <button
                 type="button"
-                variant="outline"
                 onClick={() => setEditModalOpen(false)}
-                className="rounded-xl text-xs font-semibold"
+                className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-medium text-xs hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
                 disabled={submitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md gap-2"
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
               >
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
                 <span>Save Customer Changes</span>
-              </Button>
+              </button>
             </div>
           </form>
         </div>
