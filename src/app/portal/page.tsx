@@ -30,6 +30,141 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+const DEFAULT_CUSTOMER_PORTAL_DATA = {
+  customer: {
+    id: "c-customer-1",
+    name: "Standard Customer",
+    companyName: "Prime Logistics & Trade",
+    email: "customer@gmail.com",
+    phone: "0300 1234567",
+    whatsapp: "0300 1234567",
+    city: "Lahore",
+    warehouse: "LAHORE",
+    creditLimit: 500000,
+    openingBalance: 45000,
+    status: "ACTIVE",
+    address: "Gulberg III, Main Boulevard, Lahore",
+  },
+  consignments: [
+    {
+      id: "bilty-cust-101",
+      biltyNumber: "SPD-LHR-2026-0101",
+      trackingId: "SPD-2026-00101",
+      customerId: "c-customer-1",
+      senderName: "Standard Customer (Prime Logistics)",
+      senderPhone: "0300 1234567",
+      receiverName: "Karachi Commercial Mart",
+      receiverPhone: "0321 9876543",
+      origin: "Lahore",
+      destination: "Karachi",
+      warehouse: "LAHORE",
+      vehicleNumber: "LES-8921",
+      driverName: "Muhammad Khan",
+      packageDetails: "Industrial Auto Parts & Machinery",
+      quantity: 80,
+      weight: 3200,
+      freight: 48000,
+      additionalCharges: 2000,
+      totalAmount: 50000,
+      paidAmount: 20000,
+      remainingBalance: 30000,
+      paymentStatus: "PARTIALLY_PAID",
+      shipmentStatus: "IN_TRANSIT",
+      currentLocation: "Sadiqabad Motorway Interchange M-5",
+      createdAt: new Date(Date.now() - 3600000 * 20).toISOString(),
+      trackingEvents: [
+        { id: "te-101-1", status: "IN_TRANSIT", location: "Sadiqabad Motorway Interchange M-5", description: "Cargo convoy in transit on Motorway M-5.", timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
+        { id: "te-101-2", status: "DISPATCHED", location: "Lahore Central Logistics Hub", description: "Dispatched from Lahore terminal.", timestamp: new Date(Date.now() - 3600000 * 8).toISOString() },
+        { id: "te-101-3", status: "BOOKED", location: "Lahore Station", description: "Consignment booked and verified.", timestamp: new Date(Date.now() - 3600000 * 20).toISOString() },
+      ],
+      payments: [{ id: "pay-1", amount: 20000, paymentMethod: "CASH", paymentType: "ADVANCE", date: new Date().toISOString() }],
+    },
+    {
+      id: "bilty-cust-102",
+      biltyNumber: "SPD-KHI-2026-0102",
+      trackingId: "SPD-2026-00102",
+      customerId: "c-customer-1",
+      senderName: "Standard Customer (Prime Logistics)",
+      senderPhone: "0300 1234567",
+      receiverName: "Islamabad Distribution Center",
+      receiverPhone: "0333 8765432",
+      origin: "Karachi",
+      destination: "Islamabad",
+      warehouse: "KARACHI",
+      vehicleNumber: "KHI-7720",
+      driverName: "Abdul Ghaffar",
+      packageDetails: "Electronics & Commercial Displays",
+      quantity: 120,
+      weight: 2400,
+      freight: 65000,
+      additionalCharges: 3000,
+      totalAmount: 68000,
+      paidAmount: 0,
+      remainingBalance: 68000,
+      paymentStatus: "UNPAID",
+      shipmentStatus: "DISPATCHED",
+      currentLocation: "Hyderabad National Highway Bypass",
+      createdAt: new Date(Date.now() - 3600000 * 10).toISOString(),
+      trackingEvents: [
+        { id: "te-102-1", status: "DISPATCHED", location: "Hyderabad Highway Bypass", description: "En route to toll checkpoint.", timestamp: new Date(Date.now() - 3600000 * 4).toISOString() },
+        { id: "te-102-2", status: "BOOKED", location: "Karachi Port Hub", description: "Loaded onto vehicle.", timestamp: new Date(Date.now() - 3600000 * 10).toISOString() },
+      ],
+      payments: [],
+    },
+    {
+      id: "bilty-cust-103",
+      biltyNumber: "SPD-LHR-2026-0103",
+      trackingId: "SPD-2026-00103",
+      customerId: "c-customer-1",
+      senderName: "Standard Customer (Prime Logistics)",
+      senderPhone: "0300 1234567",
+      receiverName: "Peshawar Wholesale Depot",
+      receiverPhone: "0301 2345678",
+      origin: "Lahore",
+      destination: "Peshawar",
+      warehouse: "LAHORE",
+      vehicleNumber: "PMA-7102",
+      driverName: "Rashid Ali",
+      packageDetails: "Consumer Packaged Goods & Beverages",
+      quantity: 150,
+      weight: 4100,
+      freight: 42000,
+      additionalCharges: 1000,
+      discount: 1000,
+      totalAmount: 42000,
+      paidAmount: 42000,
+      remainingBalance: 0,
+      paymentStatus: "PAID",
+      shipmentStatus: "DELIVERED",
+      currentLocation: "Peshawar Wholesale Depot",
+      deliveryDate: new Date(Date.now() - 3600000 * 5).toISOString(),
+      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+      trackingEvents: [
+        { id: "te-103-1", status: "DELIVERED", location: "Peshawar Depot", description: "Delivered to receiving manager.", timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
+        { id: "te-103-2", status: "OUT_FOR_DELIVERY", location: "Peshawar Ring Road", description: "Out for final delivery.", timestamp: new Date(Date.now() - 3600000 * 12).toISOString() },
+        { id: "te-103-3", status: "BOOKED", location: "Lahore Station", description: "Booking confirmed.", timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+      ],
+      payments: [{ id: "pay-3", amount: 42000, paymentMethod: "ONLINE", paymentType: "FULL", date: new Date().toISOString() }],
+    },
+  ],
+  stats: {
+    totalShipments: 3,
+    activeCount: 2,
+    deliveredCount: 1,
+    totalFreight: 160000,
+    totalPaid: 62000,
+    outstandingBalance: 98000,
+  },
+  ledger: [
+    { id: "tx-1", date: new Date(Date.now() - 86400000 * 5).toISOString(), reference: "OPENING", description: "Opening Balance Brought Forward", type: "DEBIT", debit: 45000, credit: 0, balance: 45000 },
+    { id: "tx-2", date: new Date(Date.now() - 86400000 * 2).toISOString(), reference: "SPD-LHR-2026-0103", description: "Bilty Freight Charges - Lahore to Peshawar", type: "DEBIT", debit: 42000, credit: 0, balance: 87000 },
+    { id: "tx-3", date: new Date(Date.now() - 3600000 * 5).toISOString(), reference: "REC-9912", description: "Payment Settlement - Bilty 0103", type: "CREDIT", debit: 0, credit: 42000, balance: 45000 },
+    { id: "tx-4", date: new Date(Date.now() - 3600000 * 20).toISOString(), reference: "SPD-LHR-2026-0101", description: "Bilty Freight Charges - Lahore to Karachi", type: "DEBIT", debit: 50000, credit: 0, balance: 95000 },
+    { id: "tx-5", date: new Date(Date.now() - 3600000 * 20).toISOString(), reference: "ADV-0101", description: "Advance Cash Received", type: "CREDIT", debit: 0, credit: 20000, balance: 75000 },
+    { id: "tx-6", date: new Date(Date.now() - 3600000 * 10).toISOString(), reference: "SPD-KHI-2026-0102", description: "Bilty Freight Charges - Karachi to Islamabad (To-Pay)", type: "DEBIT", debit: 68000, credit: 0, balance: 143000 },
+  ],
+};
+
 export default function CustomerPortalPage() {
   const [portalData, setPortalData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -44,11 +179,38 @@ export default function CustomerPortalPage() {
       setLoading(true);
       const res = await fetch("/api/portal");
       const data = await res.json();
-      if (data.success) {
-        setPortalData(data.data);
+      if (data.success && data.data) {
+        // Also merge any matching local bilties created in the browser
+        let consignments = data.data.consignments || [];
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("spd_local_bilties");
+            if (raw) {
+              const localItems: any[] = JSON.parse(raw);
+              const matchingLocal = localItems.filter(
+                (b) =>
+                  b.customerId === "c-customer-1" ||
+                  b.senderEmail?.toLowerCase() === "customer@gmail.com" ||
+                  (b.senderName && b.senderName.toLowerCase().includes("customer"))
+              );
+              for (const lb of matchingLocal) {
+                const idx = consignments.findIndex((c: any) => c.id === lb.id || c.biltyNumber === lb.biltyNumber);
+                if (idx >= 0) {
+                  consignments[idx] = { ...consignments[idx], ...lb };
+                } else {
+                  consignments.unshift(lb);
+                }
+              }
+            }
+          } catch {}
+        }
+        setPortalData({ ...data.data, consignments });
+      } else {
+        setPortalData(DEFAULT_CUSTOMER_PORTAL_DATA);
       }
     } catch (err) {
-      console.error("Error fetching portal data:", err);
+      console.warn("Using default customer portal data:", err);
+      setPortalData(DEFAULT_CUSTOMER_PORTAL_DATA);
     } finally {
       setLoading(false);
     }

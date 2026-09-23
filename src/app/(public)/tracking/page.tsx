@@ -55,6 +55,138 @@ function TrackingContent() {
           : null;
         if (match) return match;
       }
+
+      // 3. Fallback for pre-seeded active bilties
+      const SEEDED_FALLBACK: Record<string, any> = {
+        'SPD-2026-00101': {
+          id: "bilty-cust-101",
+          trackingId: "SPD-2026-00101",
+          biltyNumber: "SPD-LHR-2026-0101",
+          status: "IN_TRANSIT",
+          origin: "Lahore",
+          destination: "Karachi",
+          warehouse: "LAHORE",
+          packageDetails: "Industrial Auto Parts & Machinery",
+          quantity: 80,
+          weight: 3200,
+          senderName: "Standard Customer (Prime Logistics)",
+          senderPhone: "0300 1234567",
+          receiverName: "Karachi Commercial Mart",
+          receiverPhone: "0321 9876543",
+          events: [
+            { id: "te-101-1", status: "IN_TRANSIT", location: "Sadiqabad Motorway Interchange M-5", timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), description: "Cargo convoy in transit on Motorway M-5." },
+            { id: "te-101-2", status: "DISPATCHED", location: "Lahore Central Logistics Hub", timestamp: new Date(Date.now() - 3600000 * 8).toISOString(), description: "Dispatched from Lahore terminal via Vehicle LES-8921." },
+            { id: "te-101-3", status: "BOOKED", location: "Lahore Station", timestamp: new Date(Date.now() - 3600000 * 20).toISOString(), description: "Consignment booked and verified." },
+          ],
+        },
+        'SPD-LHR-2026-0101': {
+          id: "bilty-cust-101",
+          trackingId: "SPD-2026-00101",
+          biltyNumber: "SPD-LHR-2026-0101",
+          status: "IN_TRANSIT",
+          origin: "Lahore",
+          destination: "Karachi",
+          warehouse: "LAHORE",
+          packageDetails: "Industrial Auto Parts & Machinery",
+          quantity: 80,
+          weight: 3200,
+          senderName: "Standard Customer (Prime Logistics)",
+          senderPhone: "0300 1234567",
+          receiverName: "Karachi Commercial Mart",
+          receiverPhone: "0321 9876543",
+          events: [
+            { id: "te-101-1", status: "IN_TRANSIT", location: "Sadiqabad Motorway Interchange M-5", timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), description: "Cargo convoy in transit on Motorway M-5." },
+            { id: "te-101-2", status: "DISPATCHED", location: "Lahore Central Logistics Hub", timestamp: new Date(Date.now() - 3600000 * 8).toISOString(), description: "Dispatched from Lahore terminal via Vehicle LES-8921." },
+            { id: "te-101-3", status: "BOOKED", location: "Lahore Station", timestamp: new Date(Date.now() - 3600000 * 20).toISOString(), description: "Consignment booked and verified." },
+          ],
+        },
+        'SPD-2026-00102': {
+          id: "bilty-cust-102",
+          trackingId: "SPD-2026-00102",
+          biltyNumber: "SPD-KHI-2026-0102",
+          status: "DISPATCHED",
+          origin: "Karachi",
+          destination: "Islamabad",
+          warehouse: "KARACHI",
+          packageDetails: "Electronics & Commercial Displays",
+          quantity: 120,
+          weight: 2400,
+          senderName: "Standard Customer (Prime Logistics)",
+          senderPhone: "0300 1234567",
+          receiverName: "Islamabad Distribution Center",
+          receiverPhone: "0333 8765432",
+          events: [
+            { id: "te-102-1", status: "DISPATCHED", location: "Hyderabad Highway Bypass", timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), description: "En route to toll checkpoint." },
+            { id: "te-102-2", status: "BOOKED", location: "Karachi Port Hub", timestamp: new Date(Date.now() - 3600000 * 10).toISOString(), description: "Bilty registered and loaded onto vehicle." },
+          ],
+        },
+        'SPD-KHI-2026-0102': {
+          id: "bilty-cust-102",
+          trackingId: "SPD-2026-00102",
+          biltyNumber: "SPD-KHI-2026-0102",
+          status: "DISPATCHED",
+          origin: "Karachi",
+          destination: "Islamabad",
+          warehouse: "KARACHI",
+          packageDetails: "Electronics & Commercial Displays",
+          quantity: 120,
+          weight: 2400,
+          senderName: "Standard Customer (Prime Logistics)",
+          senderPhone: "0300 1234567",
+          receiverName: "Islamabad Distribution Center",
+          receiverPhone: "0333 8765432",
+          events: [
+            { id: "te-102-1", status: "DISPATCHED", location: "Hyderabad Highway Bypass", timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), description: "En route to toll checkpoint." },
+            { id: "te-102-2", status: "BOOKED", location: "Karachi Port Hub", timestamp: new Date(Date.now() - 3600000 * 10).toISOString(), description: "Bilty registered and loaded onto vehicle." },
+          ],
+        },
+        'SPD-2026-00103': {
+          id: "bilty-cust-103",
+          trackingId: "SPD-2026-00103",
+          biltyNumber: "SPD-LHR-2026-0103",
+          status: "DELIVERED",
+          origin: "Lahore",
+          destination: "Peshawar",
+          warehouse: "LAHORE",
+          packageDetails: "Consumer Packaged Goods & Beverages",
+          quantity: 150,
+          weight: 4100,
+          senderName: "Standard Customer (Prime Logistics)",
+          senderPhone: "0300 1234567",
+          receiverName: "Peshawar Wholesale Depot",
+          receiverPhone: "0301 2345678",
+          events: [
+            { id: "te-103-1", status: "DELIVERED", location: "Peshawar Depot", timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), description: "Delivered to receiving manager. Signature obtained." },
+            { id: "te-103-2", status: "OUT_FOR_DELIVERY", location: "Peshawar Ring Road", timestamp: new Date(Date.now() - 3600000 * 12).toISOString(), description: "Out for final delivery." },
+            { id: "te-103-3", status: "BOOKED", location: "Lahore Station", timestamp: new Date(Date.now() - 86400000 * 2).toISOString(), description: "Booking confirmed." },
+          ],
+        },
+        'SPD-LHR-2026-0103': {
+          id: "bilty-cust-103",
+          trackingId: "SPD-2026-00103",
+          biltyNumber: "SPD-LHR-2026-0103",
+          status: "DELIVERED",
+          origin: "Lahore",
+          destination: "Peshawar",
+          warehouse: "LAHORE",
+          packageDetails: "Consumer Packaged Goods & Beverages",
+          quantity: 150,
+          weight: 4100,
+          senderName: "Standard Customer (Prime Logistics)",
+          senderPhone: "0300 1234567",
+          receiverName: "Peshawar Wholesale Depot",
+          receiverPhone: "0301 2345678",
+          events: [
+            { id: "te-103-1", status: "DELIVERED", location: "Peshawar Depot", timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), description: "Delivered to receiving manager. Signature obtained." },
+            { id: "te-103-2", status: "OUT_FOR_DELIVERY", location: "Peshawar Ring Road", timestamp: new Date(Date.now() - 3600000 * 12).toISOString(), description: "Out for final delivery." },
+            { id: "te-103-3", status: "BOOKED", location: "Lahore Station", timestamp: new Date(Date.now() - 86400000 * 2).toISOString(), description: "Booking confirmed." },
+          ],
+        },
+      };
+
+      if (SEEDED_FALLBACK[clean]) {
+        return SEEDED_FALLBACK[clean];
+      }
     } catch (e) {
       console.warn("Local storage consignment lookup error:", e);
     }

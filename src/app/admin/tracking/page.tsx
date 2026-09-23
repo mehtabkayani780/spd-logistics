@@ -34,6 +34,7 @@ import {
   FileText,
   MessageSquare,
   Sparkles,
+  Navigation,
 } from "lucide-react";
 import { formatDateTime, formatDate, cn } from "@/lib/utils";
 import { SHIPMENT_STATUS_LABELS, SHIPMENT_STATUS_COLORS } from "@/lib/constants";
@@ -43,6 +44,126 @@ const LOCAL_BILTIES_KEY = "spd_local_bilties";
 const LOCAL_TRACKING_KEY = "spd_local_tracking";
 
 const FALLBACK_CONSIGNMENTS = [
+  {
+    id: "bilty-cust-101",
+    trackingId: "SPD-2026-00101",
+    biltyNumber: "SPD-LHR-2026-0101",
+    origin: "Lahore",
+    destination: "Karachi",
+    warehouse: "LAHORE",
+    shipmentStatus: "IN_TRANSIT",
+    senderName: "Standard Customer (Prime Logistics)",
+    senderPhone: "0300 1234567",
+    receiverName: "Karachi Commercial Mart",
+    receiverPhone: "0321 9876543",
+    packageDetails: "Industrial Auto Parts & Machinery",
+    quantity: 80,
+    weight: 3200,
+    driverName: "Muhammad Khan",
+    vehicleNumber: "LES-8921",
+    createdAt: new Date(Date.now() - 3600000 * 20).toISOString(),
+    trackingEvents: [
+      {
+        id: "te-101-1",
+        status: "IN_TRANSIT",
+        location: "Sadiqabad Motorway Interchange M-5",
+        description: "Cargo convoy in transit on Motorway M-5.",
+        timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+      },
+      {
+        id: "te-101-2",
+        status: "DISPATCHED",
+        location: "Lahore Central Logistics Hub",
+        description: "Dispatched from Lahore terminal via Vehicle LES-8921.",
+        timestamp: new Date(Date.now() - 3600000 * 8).toISOString(),
+      },
+      {
+        id: "te-101-3",
+        status: "BOOKED",
+        location: "Lahore Station",
+        description: "Consignment booked and verified.",
+        timestamp: new Date(Date.now() - 3600000 * 20).toISOString(),
+      },
+    ],
+  },
+  {
+    id: "bilty-cust-102",
+    trackingId: "SPD-2026-00102",
+    biltyNumber: "SPD-KHI-2026-0102",
+    origin: "Karachi",
+    destination: "Islamabad",
+    warehouse: "KARACHI",
+    shipmentStatus: "DISPATCHED",
+    senderName: "Standard Customer (Prime Logistics)",
+    senderPhone: "0300 1234567",
+    receiverName: "Islamabad Distribution Center",
+    receiverPhone: "0333 8765432",
+    packageDetails: "Electronics & Commercial Displays",
+    quantity: 120,
+    weight: 2400,
+    driverName: "Abdul Ghaffar",
+    vehicleNumber: "KHI-7720",
+    createdAt: new Date(Date.now() - 3600000 * 10).toISOString(),
+    trackingEvents: [
+      {
+        id: "te-102-1",
+        status: "DISPATCHED",
+        location: "Hyderabad Highway Bypass",
+        description: "En route to toll checkpoint.",
+        timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
+      },
+      {
+        id: "te-102-2",
+        status: "BOOKED",
+        location: "Karachi Port Hub",
+        description: "Bilty registered and loaded onto vehicle.",
+        timestamp: new Date(Date.now() - 3600000 * 10).toISOString(),
+      },
+    ],
+  },
+  {
+    id: "bilty-cust-103",
+    trackingId: "SPD-2026-00103",
+    biltyNumber: "SPD-LHR-2026-0103",
+    origin: "Lahore",
+    destination: "Peshawar",
+    warehouse: "LAHORE",
+    shipmentStatus: "DELIVERED",
+    senderName: "Standard Customer (Prime Logistics)",
+    senderPhone: "0300 1234567",
+    receiverName: "Peshawar Wholesale Depot",
+    receiverPhone: "0301 2345678",
+    packageDetails: "Consumer Packaged Goods & Beverages",
+    quantity: 150,
+    weight: 4100,
+    driverName: "Rashid Ali",
+    vehicleNumber: "PMA-7102",
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    deliveryDate: new Date(Date.now() - 3600000 * 5).toISOString(),
+    trackingEvents: [
+      {
+        id: "te-103-1",
+        status: "DELIVERED",
+        location: "Peshawar Depot",
+        description: "Delivered to receiving manager.",
+        timestamp: new Date(Date.now() - 3600000 * 5).toISOString(),
+      },
+      {
+        id: "te-103-2",
+        status: "OUT_FOR_DELIVERY",
+        location: "Peshawar Ring Road",
+        description: "Out for final delivery.",
+        timestamp: new Date(Date.now() - 3600000 * 12).toISOString(),
+      },
+      {
+        id: "te-103-3",
+        status: "BOOKED",
+        location: "Lahore Station",
+        description: "Booking confirmed.",
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
+      },
+    ],
+  },
   {
     id: "cons-1",
     trackingId: "SPD-2026-000142",
@@ -236,6 +357,22 @@ export default function TrackingPage() {
   const [selectedConsignment, setSelectedConsignment] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Status update state for selected consignment
+  const [updateStatus, setUpdateStatus] = useState("IN_TRANSIT");
+  const [updateLocation, setUpdateLocation] = useState("");
+  const [updateNote, setUpdateNote] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateFeedback, setUpdateFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedConsignment) {
+      setUpdateStatus(selectedConsignment.shipmentStatus || "IN_TRANSIT");
+      setUpdateLocation("");
+      setUpdateNote("");
+      setUpdateFeedback(null);
+    }
+  }, [selectedConsignment]);
+
   // Load consignments from local storage and backend API
   const loadData = async () => {
     setLoading(true);
@@ -252,7 +389,7 @@ export default function TrackingPage() {
       console.warn("API bilty query in tracking failed:", err);
     }
 
-    // 2. Read and merge local bilties (ensures newly created bilties and updated statuses show immediately)
+    // 2. Read and merge local bilties & tracking store (ensures newly created bilties and updated statuses show immediately)
     if (typeof window !== "undefined") {
       try {
         const rawLocal = localStorage.getItem(LOCAL_BILTIES_KEY);
@@ -269,14 +406,34 @@ export default function TrackingPage() {
             }
           }
         }
+
+        const rawTracking = localStorage.getItem(LOCAL_TRACKING_KEY);
+        if (rawTracking) {
+          const trackingItems: any[] = JSON.parse(rawTracking);
+          for (const tb of trackingItems) {
+            const idx = items.findIndex(
+              (b) => b.id === tb.id || (tb.biltyNumber && b.biltyNumber === tb.biltyNumber) || (tb.trackingId && b.trackingId === tb.trackingId)
+            );
+            if (idx >= 0) {
+              items[idx] = { ...items[idx], ...tb };
+            } else {
+              items.unshift(tb);
+            }
+          }
+        }
       } catch (e) {
         console.warn("Error reading local bilties in tracking:", e);
       }
     }
 
-    // 3. Fallback if still empty
-    if (items.length === 0) {
-      items = [...FALLBACK_CONSIGNMENTS];
+    // 3. Ensure fallback consignments (e.g. seeded SPD-2026-00101/102/103) are always present
+    for (const fb of FALLBACK_CONSIGNMENTS) {
+      const idx = items.findIndex(
+        (b) => b.id === fb.id || b.biltyNumber === fb.biltyNumber || (fb.trackingId && b.trackingId === fb.trackingId)
+      );
+      if (idx === -1) {
+        items.push(fb);
+      }
     }
 
     // Filter out deleted
@@ -284,6 +441,113 @@ export default function TrackingPage() {
 
     setConsignments(items);
     setLoading(false);
+  };
+
+  const handleSaveStatus = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedConsignment) return;
+
+    setIsUpdating(true);
+    const newEvent = {
+      id: `te_${Date.now()}`,
+      status: updateStatus,
+      location: updateLocation.trim() || (selectedConsignment.destination ? `${selectedConsignment.destination} Hub Station` : "Transit Checkpoint"),
+      description: updateNote.trim() || `Status updated to ${updateStatus.replace(/_/g, " ")}.`,
+      timestamp: new Date().toISOString(),
+    };
+
+    const updatedConsignment = {
+      ...selectedConsignment,
+      shipmentStatus: updateStatus,
+      status: updateStatus,
+      trackingEvents: [newEvent, ...(selectedConsignment.trackingEvents || [])],
+    };
+
+    // Update in state
+    setSelectedConsignment(updatedConsignment);
+    setConsignments((prev) =>
+      prev.map((c) =>
+        c.id === updatedConsignment.id ||
+        (c.biltyNumber && c.biltyNumber === updatedConsignment.biltyNumber) ||
+        (c.trackingId && c.trackingId === updatedConsignment.trackingId)
+          ? updatedConsignment
+          : c
+      )
+    );
+
+    // Save to spd_local_bilties & spd_local_tracking
+    if (typeof window !== "undefined") {
+      try {
+        const rawBilties = localStorage.getItem(LOCAL_BILTIES_KEY);
+        const biltiesList: any[] = rawBilties ? JSON.parse(rawBilties) : [];
+        const bIdx = biltiesList.findIndex(
+          (b) =>
+            b.id === updatedConsignment.id ||
+            (b.biltyNumber && b.biltyNumber === updatedConsignment.biltyNumber) ||
+            (updatedConsignment.trackingId && b.trackingId === updatedConsignment.trackingId)
+        );
+        if (bIdx >= 0) {
+          biltiesList[bIdx] = { ...biltiesList[bIdx], ...updatedConsignment };
+        } else {
+          biltiesList.unshift(updatedConsignment);
+        }
+        localStorage.setItem(LOCAL_BILTIES_KEY, JSON.stringify(biltiesList));
+
+        const rawTracking = localStorage.getItem(LOCAL_TRACKING_KEY);
+        const trackingList: any[] = rawTracking ? JSON.parse(rawTracking) : [];
+        const tIdx = trackingList.findIndex(
+          (t) =>
+            t.id === updatedConsignment.id ||
+            (t.biltyNumber && t.biltyNumber === updatedConsignment.biltyNumber) ||
+            (updatedConsignment.trackingId && t.trackingId === updatedConsignment.trackingId)
+        );
+        if (tIdx >= 0) {
+          trackingList[tIdx] = { ...trackingList[tIdx], ...updatedConsignment };
+        } else {
+          trackingList.unshift(updatedConsignment);
+        }
+        localStorage.setItem(LOCAL_TRACKING_KEY, JSON.stringify(trackingList));
+
+        // Auto update driver status to ON_TRIP if in transit
+        if (updateStatus === "IN_TRANSIT" || updateStatus === "DISPATCHED") {
+          const dId = updatedConsignment.driverId;
+          const dName = updatedConsignment.driverName;
+          const rawDrivers = localStorage.getItem("spd_local_drivers");
+          if (rawDrivers) {
+            let drivers: any[] = JSON.parse(rawDrivers);
+            let dUpdated = false;
+            drivers = drivers.map((d: any) => {
+              if ((dId && d.id === dId) || (dName && d.name?.toLowerCase().trim() === dName.toLowerCase().trim())) {
+                dUpdated = true;
+                return { ...d, status: "ON_TRIP" };
+              }
+              return d;
+            });
+            if (dUpdated) {
+              localStorage.setItem("spd_local_drivers", JSON.stringify(drivers));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Error saving status update locally:", err);
+      }
+    }
+
+    // Call API in background
+    fetch("/api/admin/bilty", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: updatedConsignment.id,
+        shipmentStatus: updateStatus,
+        location: updateLocation.trim() || undefined,
+        statusNote: updateNote.trim() || undefined,
+      }),
+    }).catch(() => {});
+
+    setIsUpdating(false);
+    setUpdateFeedback("Status & Checkpoint updated successfully!");
+    setTimeout(() => setUpdateFeedback(null), 3500);
   };
 
   useEffect(() => {
@@ -815,6 +1079,71 @@ export default function TrackingPage() {
                   Initial booking checkpoint recorded. Transit updates will log automatically.
                 </div>
               )}
+            </div>
+
+            {/* Direct Status Update & Checkpoint Entry */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Navigation className="w-3.5 h-3.5 text-spd-red" />
+                  <span>Update Live Status & Post Checkpoint</span>
+                </h4>
+                {updateFeedback && (
+                  <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
+                    {updateFeedback}
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveStatus} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">New Shipment Status</label>
+                  <select
+                    value={updateStatus}
+                    onChange={(e) => setUpdateStatus(e.target.value)}
+                    className="w-full h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold focus:ring-2 focus:ring-spd-blue outline-none"
+                  >
+                    <option value="BOOKED">BOOKED (At Station)</option>
+                    <option value="IN_TRANSIT">IN_TRANSIT (On Highway)</option>
+                    <option value="OUT_FOR_DELIVERY">OUT_FOR_DELIVERY (Last Mile)</option>
+                    <option value="DELIVERED">DELIVERED (Signed & Handed Over)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Hub / Station Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sukkur Bypass Interchange"
+                    value={updateLocation}
+                    onChange={(e) => setUpdateLocation(e.target.value)}
+                    className="w-full h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-spd-blue outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Transit Note / Remark</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Cleared toll, en route to Karachi"
+                    value={updateNote}
+                    onChange={(e) => setUpdateNote(e.target.value)}
+                    className="w-full h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-spd-blue outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-3 flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={isUpdating}
+                    size="sm"
+                    className="rounded-xl text-xs font-bold bg-spd-blue hover:bg-spd-blueHover text-white gap-1.5 h-9"
+                  >
+                    <RefreshCw className={cn("w-3.5 h-3.5", isUpdating && "animate-spin")} />
+                    <span>Save Status & Add Checkpoint</span>
+                  </Button>
+                </div>
+              </form>
             </div>
           </div>
 

@@ -215,6 +215,13 @@ export default function DriversPage() {
           return bDIdMatch || bDNameMatch || bVehMatch;
         });
 
+        const hasActiveTrip = matched.some(
+          (b: any) => b.shipmentStatus === "IN_TRANSIT" || b.shipmentStatus === "DISPATCHED"
+        );
+        if (hasActiveTrip) {
+          d.status = "ON_TRIP";
+        }
+
         const existing = Array.isArray(d.consignments) ? d.consignments : [];
         const combined = [...existing];
         for (const m of matched) {
@@ -490,6 +497,50 @@ export default function DriversPage() {
     }
   };
 
+  const handleQuickStatusChange = async (driverId: string, newStatus: string) => {
+    try {
+      // 1. Update state immediately
+      setDrivers((prev) =>
+        prev.map((d) => (d.id === driverId ? { ...d, status: newStatus } : d))
+      );
+
+      // 2. Persist in localStorage
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem(LOCAL_DRIVERS_KEY);
+          let localDrivers: any[] = raw ? JSON.parse(raw) : [];
+          const idx = localDrivers.findIndex((d) => d.id === driverId);
+          if (idx >= 0) {
+            localDrivers[idx] = { ...localDrivers[idx], status: newStatus };
+          } else {
+            const current = drivers.find((d) => d.id === driverId);
+            if (current) {
+              localDrivers.unshift({ ...current, status: newStatus });
+            }
+          }
+          localStorage.setItem(LOCAL_DRIVERS_KEY, JSON.stringify(localDrivers));
+        } catch (e) {
+          console.warn("Error updating local drivers:", e);
+        }
+      }
+
+      // 3. Background API sync
+      fetch("/api/admin/drivers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: driverId, status: newStatus }),
+      }).catch(() => {});
+
+      setActionFeedback({
+        type: "success",
+        text: `Driver status successfully updated to ${newStatus}.`,
+      });
+      setTimeout(() => setActionFeedback(null), 3500);
+    } catch (err) {
+      console.error("Failed to update driver status:", err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -679,17 +730,27 @@ export default function DriversPage() {
                     {d._count?.consignments || 0} consignments
                   </TableCell>
                   <TableCell>
-                    <span
-                      className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${
-                        d.status === "AVAILABLE"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
-                          : d.status === "ASSIGNED" || d.status === "ON_TRIP"
-                          ? "bg-blue-100 text-spd-blue dark:bg-blue-950/60 dark:text-blue-400"
-                          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                      }`}
-                    >
-                      {d.status}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={d.status || "AVAILABLE"}
+                        onChange={(e) => handleQuickStatusChange(d.id, e.target.value)}
+                        className={`text-[11px] font-bold py-1 px-2.5 rounded-xl border cursor-pointer outline-none transition-all shadow-xs ${
+                          d.status === "AVAILABLE"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800"
+                            : d.status === "ON_TRIP" || d.status === "ASSIGNED"
+                            ? "bg-blue-50 text-spd-blue border-blue-300 dark:bg-blue-950/60 dark:text-blue-400 dark:border-blue-800"
+                            : d.status === "RESTING"
+                            ? "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-800"
+                            : "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-400 dark:border-rose-800"
+                        }`}
+                        title="Click to update driver status"
+                      >
+                        <option value="AVAILABLE">AVAILABLE (Ready)</option>
+                        <option value="ON_TRIP">ON_TRIP (Highway)</option>
+                        <option value="RESTING">RESTING (Off-duty)</option>
+                        <option value="MAINTENANCE">MAINTENANCE</option>
+                      </select>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1.5">
@@ -982,6 +1043,22 @@ export default function DriversPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Driver Duty Status
+                </Label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-hidden"
+                >
+                  <option value="AVAILABLE">AVAILABLE (Ready for dispatch)</option>
+                  <option value="ON_TRIP">ON_TRIP (Assigned & on highway route)</option>
+                  <option value="RESTING">RESTING (Off-duty)</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
                   Emergency Contact
                 </Label>
                 <Input
@@ -1226,10 +1303,10 @@ export default function DriversPage() {
                   onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
                   className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-hidden"
                 >
-                  <option value="AVAILABLE">AVAILABLE (On Duty / Ready)</option>
-                  <option value="ON_TRIP">ON_TRIP (En Route)</option>
-                  <option value="OFF_DUTY">OFF_DUTY (Rest / Leave)</option>
-                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="AVAILABLE">AVAILABLE (Ready for dispatch)</option>
+                  <option value="ON_TRIP">ON_TRIP (Assigned & on highway route)</option>
+                  <option value="RESTING">RESTING (Off-duty)</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
                 </select>
               </div>
 

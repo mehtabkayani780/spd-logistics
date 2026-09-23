@@ -169,6 +169,133 @@ export default function BiltyPage() {
 
   const DEFAULT_CLIENT_CONSIGNMENTS = [
     {
+      id: "bilty-cust-101",
+      biltyNumber: "SPD-LHR-2026-0101",
+      trackingId: "SPD-2026-00101",
+      date: new Date(Date.now() - 3600000 * 20).toISOString(),
+      senderName: "Standard Customer (Prime Logistics)",
+      senderPhone: "0300 1234567",
+      senderAddress: "Gulberg III, Main Boulevard, Lahore",
+      receiverName: "Karachi Commercial Mart",
+      receiverPhone: "0321 9876543",
+      receiverAddress: "M.A. Jinnah Road, Karachi",
+      origin: "Lahore",
+      destination: "Karachi",
+      warehouse: "LAHORE",
+      vehicleNumber: "LES-8921",
+      driverName: "Muhammad Khan",
+      packageDetails: "Industrial Auto Parts & Machinery",
+      quantity: 80,
+      weight: 3200,
+      cpm: 100,
+      freight: 48000,
+      additionalCharges: 2000,
+      discount: 0,
+      totalAmount: 50000,
+      paidAmount: 20000,
+      remainingBalance: 30000,
+      paymentStatus: "PARTIALLY_PAID",
+      shipmentStatus: "IN_TRANSIT",
+      currentLocation: "Sadiqabad Motorway Interchange M-5",
+      notes: "Direct express delivery to central warehouse",
+      createdAt: new Date(Date.now() - 3600000 * 20).toISOString(),
+      customer: { id: "c-customer-1", name: "Standard Customer", companyName: "Prime Logistics & Trade", phone: "0300 1234567", email: "customer@gmail.com" },
+      vehicle: { id: "v-1", vehicleNumber: "LES-8921", vehicleType: "10 Wheeler Bedford" },
+      driver: { id: "d-1", name: "Muhammad Khan", phone: "0301 5566778" },
+      trackingEvents: [
+        { id: "te-101-1", status: "IN_TRANSIT", location: "Sadiqabad Motorway Interchange M-5", timestamp: new Date(Date.now() - 3600000 * 2), description: "Cargo convoy in transit on Motorway M-5." },
+        { id: "te-101-2", status: "DISPATCHED", location: "Lahore Central Logistics Hub", timestamp: new Date(Date.now() - 3600000 * 8), description: "Dispatched from Lahore terminal via Vehicle LES-8921." },
+        { id: "te-101-3", status: "BOOKED", location: "Lahore Station", timestamp: new Date(Date.now() - 3600000 * 20), description: "Consignment booked and verified." },
+      ],
+      payments: [
+        { id: "pay-101-1", amount: 20000, paymentMethod: "CASH", paymentType: "ADVANCE", date: new Date() }
+      ]
+    },
+    {
+      id: "bilty-cust-102",
+      biltyNumber: "SPD-KHI-2026-0102",
+      trackingId: "SPD-2026-00102",
+      date: new Date(Date.now() - 3600000 * 10).toISOString(),
+      senderName: "Standard Customer (Prime Logistics)",
+      senderPhone: "0300 1234567",
+      senderAddress: "SITE Area, Karachi",
+      receiverName: "Islamabad Distribution Center",
+      receiverPhone: "0333 8765432",
+      receiverAddress: "Sector I-9 Industrial Area, Islamabad",
+      origin: "Karachi",
+      destination: "Islamabad",
+      warehouse: "KARACHI",
+      vehicleNumber: "KHI-7720",
+      driverName: "Abdul Ghaffar",
+      packageDetails: "Electronics & Commercial Displays",
+      quantity: 120,
+      weight: 2400,
+      cpm: 120,
+      freight: 65000,
+      additionalCharges: 3000,
+      discount: 0,
+      totalAmount: 68000,
+      paidAmount: 0,
+      remainingBalance: 68000,
+      paymentStatus: "UNPAID",
+      shipmentStatus: "DISPATCHED",
+      currentLocation: "Hyderabad National Highway Bypass",
+      notes: "Fragile electronic panels - Keep upright",
+      createdAt: new Date(Date.now() - 3600000 * 10).toISOString(),
+      customer: { id: "c-customer-1", name: "Standard Customer", companyName: "Prime Logistics & Trade", phone: "0300 1234567", email: "customer@gmail.com" },
+      vehicle: { id: "v-2", vehicleNumber: "KHI-7720", vehicleType: "Prime Mover 22 Wheeler" },
+      driver: { id: "d-2", name: "Abdul Ghaffar", phone: "0345 9988112" },
+      trackingEvents: [
+        { id: "te-102-1", status: "DISPATCHED", location: "Hyderabad Highway Bypass", timestamp: new Date(Date.now() - 3600000 * 4), description: "En route to toll checkpoint." },
+        { id: "te-102-2", status: "BOOKED", location: "Karachi Port Hub", timestamp: new Date(Date.now() - 3600000 * 10), description: "Bilty registered and loaded onto vehicle." },
+      ],
+      payments: []
+    },
+    {
+      id: "bilty-cust-103",
+      biltyNumber: "SPD-LHR-2026-0103",
+      trackingId: "SPD-2026-00103",
+      date: new Date(Date.now() - 86400000 * 2).toISOString(),
+      senderName: "Standard Customer (Prime Logistics)",
+      senderPhone: "0300 1234567",
+      senderAddress: "Kot Lakhpat, Lahore",
+      receiverName: "Peshawar Wholesale Depot",
+      receiverPhone: "0301 2345678",
+      receiverAddress: "Hayatabad Industrial Area, Peshawar",
+      origin: "Lahore",
+      destination: "Peshawar",
+      warehouse: "LAHORE",
+      vehicleNumber: "PMA-7102",
+      driverName: "Rashid Ali",
+      packageDetails: "Consumer Packaged Goods & Beverages",
+      quantity: 150,
+      weight: 4100,
+      cpm: 90,
+      freight: 42000,
+      additionalCharges: 1000,
+      discount: 1000,
+      totalAmount: 42000,
+      paidAmount: 42000,
+      remainingBalance: 0,
+      paymentStatus: "PAID",
+      shipmentStatus: "DELIVERED",
+      currentLocation: "Peshawar Wholesale Depot",
+      deliveryDate: new Date(Date.now() - 3600000 * 5).toISOString(),
+      notes: "Successfully delivered. Receiving voucher signed.",
+      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+      customer: { id: "c-customer-1", name: "Standard Customer", companyName: "Prime Logistics & Trade", phone: "0300 1234567", email: "customer@gmail.com" },
+      vehicle: { id: "v-3", vehicleNumber: "PMA-7102", vehicleType: "Mazda Titan" },
+      driver: { id: "d-3", name: "Rashid Ali", phone: "0333 1122334" },
+      trackingEvents: [
+        { id: "te-103-1", status: "DELIVERED", location: "Peshawar Depot", timestamp: new Date(Date.now() - 3600000 * 5), description: "Delivered to receiving manager." },
+        { id: "te-103-2", status: "OUT_FOR_DELIVERY", location: "Peshawar Ring Road", timestamp: new Date(Date.now() - 3600000 * 12), description: "Out for final delivery." },
+        { id: "te-103-3", status: "BOOKED", location: "Lahore Station", timestamp: new Date(Date.now() - 86400000 * 2), description: "Booking confirmed." },
+      ],
+      payments: [
+        { id: "pay-103-1", amount: 42000, paymentMethod: "ONLINE", paymentType: "FULL", date: new Date() }
+      ]
+    },
+    {
       id: "bilty-mock-1",
       biltyNumber: "SPD-LHR-2026-0042",
       trackingId: "SPD-2026-000142",
@@ -338,6 +465,7 @@ export default function BiltyPage() {
   ];
 
   const DEFAULT_CUSTOMERS = [
+    { id: "c-customer-1", name: "Standard Customer", companyName: "Prime Logistics & Trade", phone: "0300 1234567", city: "Lahore", email: "customer@gmail.com" },
     { id: "c-1", name: "Mian Muhammad Mansha", companyName: "Crescent Textile Mills Ltd", phone: "0300 1234567", city: "Lahore" },
     { id: "c-2", name: "Haji Rahim", companyName: "Al-Rahim Trading", phone: "0333 4455667", city: "Karachi" },
     { id: "c-3", name: "Syed Babar Ali", companyName: "Packages Limited", phone: "042 35811544", city: "Lahore" },
@@ -396,6 +524,31 @@ export default function BiltyPage() {
         localStorage.setItem(LOCAL_TRACKING_KEY, JSON.stringify(trackingList));
       } catch (tErr) {
         console.warn("Save local tracking store error:", tErr);
+      }
+
+      // Auto-set driver status to ON_TRIP when assigned to an active Bilty that is dispatched/In-Transit
+      if (bilty.shipmentStatus === "IN_TRANSIT" || bilty.shipmentStatus === "DISPATCHED") {
+        const driverId = bilty.driverId || bilty.driver?.id;
+        const driverName = bilty.driverName || bilty.driver?.name;
+        if (driverId || driverName) {
+          try {
+            const rawDrivers = localStorage.getItem("spd_local_drivers");
+            let drivers: any[] = rawDrivers ? JSON.parse(rawDrivers) : [];
+            let updated = false;
+            drivers = drivers.map((d: any) => {
+              if ((driverId && d.id === driverId) || (driverName && d.name?.toLowerCase().trim() === driverName.toLowerCase().trim())) {
+                updated = true;
+                return { ...d, status: "ON_TRIP" };
+              }
+              return d;
+            });
+            if (updated) {
+              localStorage.setItem("spd_local_drivers", JSON.stringify(drivers));
+            }
+          } catch (dErr) {
+            console.warn("Auto update driver status error:", dErr);
+          }
+        }
       }
     } catch (err) {
       console.warn("Save local bilty error:", err);

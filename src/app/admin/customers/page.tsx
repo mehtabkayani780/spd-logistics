@@ -39,6 +39,7 @@ import {
   Camera,
   Upload,
   MessageSquare,
+  X,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildWhatsAppUrl, getAdminToCustomerWhatsAppMessage } from "@/lib/whatsapp";
@@ -854,26 +855,42 @@ export default function CustomersPage() {
       )}
 
       {/* MODAL 1: ADD CUSTOMER & LOGIN */}
-      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden">
-          <DialogHeader className="shrink-0 pb-2">
-            <DialogTitle className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-spd-red" />
-              Register New Customer / Dealer
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-              Create customer account and login credentials. Customer can log in at the Customer Portal to track bilties and view statements.
-            </DialogDescription>
-          </DialogHeader>
-
-          {formError && (
-            <div className="shrink-0 mb-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
-              {formError}
+      {addModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-h-[88vh] sm:max-h-[85vh] overflow-hidden border border-gray-100 dark:border-slate-800">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0 bg-white dark:bg-slate-900">
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-spd-red" />
+                  Register New Customer / Dealer
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Create customer account and login credentials. Customer can log in at the Customer Portal to track bilties and view statements.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
 
-          <form onSubmit={handleCreateCustomer} className="flex-1 flex flex-col min-h-0 pt-2">
-            <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+            {formError && (
+              <div className="mx-4 mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800 flex-shrink-0">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateCustomer} className="flex-1 flex flex-col min-h-0">
+              {/* Scrollable Body */}
+              <div
+                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 overscroll-contain"
+                style={{ maxHeight: 'calc(85vh - 130px)', WebkitOverflowScrolling: 'touch' }}
+              >
             {/* Customer Photo Upload Control */}
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
               <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-red-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
@@ -1122,7 +1139,8 @@ export default function CustomersPage() {
             </div>
             </div>
 
-            <DialogFooter className="shrink-0 pt-4 border-t border-slate-100 dark:border-slate-800 mt-2">
+            {/* Pinned Sticky Footer */}
+            <div className="p-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 flex-shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -1139,32 +1157,49 @@ export default function CustomersPage() {
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 <span>Create Customer Login</span>
               </Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+      )}
 
       {/* MODAL 1B: EDIT CUSTOMER */}
-      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden">
-          <DialogHeader className="shrink-0 pb-2">
-            <DialogTitle className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-blue-600" />
-              Edit Customer Profile
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-              Update customer information, contact details, address, and profile photo.
-            </DialogDescription>
-          </DialogHeader>
-
-          {formError && (
-            <div className="shrink-0 mb-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
-              {formError}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-h-[88vh] sm:max-h-[85vh] overflow-hidden border border-gray-100 dark:border-slate-800">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0 bg-white dark:bg-slate-900">
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                  Edit Customer Profile
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Update customer information, contact details, address, and profile photo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
 
-          <form onSubmit={handleUpdateCustomer} className="flex-1 flex flex-col min-h-0 pt-2">
-            <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+            {formError && (
+              <div className="mx-4 mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800 flex-shrink-0">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateCustomer} className="flex-1 flex flex-col min-h-0">
+              {/* Scrollable Body */}
+              <div
+                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 overscroll-contain"
+                style={{ maxHeight: 'calc(85vh - 130px)', WebkitOverflowScrolling: 'touch' }}
+              >
             {/* Customer Photo Upload & Preview */}
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
               <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-blue-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
@@ -1399,7 +1434,8 @@ export default function CustomersPage() {
             </div>
             </div>
 
-            <DialogFooter className="shrink-0 pt-4 border-t border-slate-100 dark:border-slate-800 mt-2">
+            {/* Pinned Sticky Footer */}
+            <div className="p-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 flex-shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -1416,10 +1452,11 @@ export default function CustomersPage() {
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
                 <span>Save Customer Changes</span>
               </Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+      )}
 
       {/* MODAL 2: VIEW CUSTOMER LEDGER & DETAILS */}
       <Dialog open={!!viewCustomer} onOpenChange={() => setViewCustomer(null)}>

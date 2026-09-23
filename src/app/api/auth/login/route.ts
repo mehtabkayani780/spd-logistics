@@ -58,6 +58,52 @@ export async function POST(request: Request) {
       return response;
     }
 
+    // Direct hardcoded customer credentials check strictly configured to customer@gmail.com / admin
+    if ((lowerIdentifier === 'customer@gmail.com' || lowerIdentifier === 'customer') && cleanPassword === 'admin') {
+      const token = 'spd-customer-session-token';
+      const customerData = {
+        token,
+        id: 'cust-user-1',
+        email: 'customer@gmail.com',
+        username: 'customer',
+        name: 'Standard Customer',
+        role: 'CUSTOMER',
+        redirectUrl: '/customer/dashboard',
+        customer: {
+          id: 'c-customer-1',
+          name: 'Standard Customer',
+          email: 'customer@gmail.com',
+          companyName: 'Prime Logistics & Trade',
+          phone: '0300 1234567',
+        },
+      };
+
+      const response = NextResponse.json({
+        success: true,
+        redirectUrl: '/customer/dashboard',
+        user: {
+          id: 'cust-user-1',
+          email: 'customer@gmail.com',
+          name: 'Standard Customer',
+          role: 'CUSTOMER',
+        },
+        data: customerData,
+      });
+
+      const isLocalhost = request.url.includes('localhost') || request.url.includes('127.0.0.1');
+      const isHttps = !isLocalhost && (request.headers.get('x-forwarded-proto') === 'https' || request.url.startsWith('https:'));
+
+      response.cookies.set('spd-auth-token', token, {
+        httpOnly: false,
+        secure: isHttps,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      });
+
+      return response;
+    }
+
     // Find user by email, username, or phone
     let user = null;
     try {
