@@ -359,6 +359,7 @@ export default function BiltyPage() {
   // LocalStorage helpers for 100% offline & serverless resilience
   const LOCAL_BILTIES_KEY = "spd_local_bilties";
   const LOCAL_DELETED_BILTIES_KEY = "spd_local_deleted_bilties";
+  const LOCAL_TRACKING_KEY = "spd_local_tracking";
 
   const getLocalBilties = (): any[] => {
     if (typeof window === "undefined") return [];
@@ -374,13 +375,28 @@ export default function BiltyPage() {
     if (typeof window === "undefined") return;
     try {
       const items = getLocalBilties();
-      const idx = items.findIndex((b) => b.id === bilty.id || b.biltyNumber === bilty.biltyNumber);
+      const idx = items.findIndex((b) => b.id === bilty.id || b.biltyNumber === bilty.biltyNumber || (bilty.trackingId && b.trackingId === bilty.trackingId));
       if (idx >= 0) {
         items[idx] = { ...items[idx], ...bilty };
       } else {
         items.unshift(bilty);
       }
       localStorage.setItem(LOCAL_BILTIES_KEY, JSON.stringify(items));
+
+      // Also register into tracking store for instant sync
+      try {
+        const rawTracking = localStorage.getItem(LOCAL_TRACKING_KEY);
+        const trackingList: any[] = rawTracking ? JSON.parse(rawTracking) : [];
+        const tIdx = trackingList.findIndex((t: any) => t.id === bilty.id || (bilty.trackingId && t.trackingId === bilty.trackingId) || (bilty.biltyNumber && t.biltyNumber === bilty.biltyNumber));
+        if (tIdx >= 0) {
+          trackingList[tIdx] = { ...trackingList[tIdx], ...bilty };
+        } else {
+          trackingList.unshift(bilty);
+        }
+        localStorage.setItem(LOCAL_TRACKING_KEY, JSON.stringify(trackingList));
+      } catch (tErr) {
+        console.warn("Save local tracking store error:", tErr);
+      }
     } catch (err) {
       console.warn("Save local bilty error:", err);
     }
@@ -397,6 +413,13 @@ export default function BiltyPage() {
         del.push(id);
         localStorage.setItem(LOCAL_DELETED_BILTIES_KEY, JSON.stringify(del));
       }
+      try {
+        const rawTracking = localStorage.getItem(LOCAL_TRACKING_KEY);
+        if (rawTracking) {
+          const trackingList = JSON.parse(rawTracking).filter((t: any) => t.id !== id);
+          localStorage.setItem(LOCAL_TRACKING_KEY, JSON.stringify(trackingList));
+        }
+      } catch {}
     } catch (err) {
       console.warn("Remove local bilty error:", err);
     }

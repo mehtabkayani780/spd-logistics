@@ -855,8 +855,8 @@ export default function CustomersPage() {
 
       {/* MODAL 1: ADD CUSTOMER & LOGIN */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent className="max-w-2xl rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden">
+          <DialogHeader className="shrink-0 pb-2">
             <DialogTitle className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Building2 className="w-5 h-5 text-spd-red" />
               Register New Customer / Dealer
@@ -867,12 +867,13 @@ export default function CustomersPage() {
           </DialogHeader>
 
           {formError && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
+            <div className="shrink-0 mb-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
               {formError}
             </div>
           )}
 
-          <form onSubmit={handleCreateCustomer} className="space-y-4 pt-2">
+          <form onSubmit={handleCreateCustomer} className="flex-1 flex flex-col min-h-0 pt-2">
+            <div className="flex-1 overflow-y-auto pr-1 space-y-4">
             {/* Customer Photo Upload Control */}
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
               <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-red-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
@@ -1119,8 +1120,9 @@ export default function CustomersPage() {
                 />
               </div>
             </div>
+            </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <DialogFooter className="shrink-0 pt-4 border-t border-slate-100 dark:border-slate-800 mt-2">
               <Button
                 type="button"
                 variant="outline"
@@ -1144,8 +1146,8 @@ export default function CustomersPage() {
 
       {/* MODAL 1B: EDIT CUSTOMER */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-2xl rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden">
+          <DialogHeader className="shrink-0 pb-2">
             <DialogTitle className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Building2 className="w-5 h-5 text-blue-600" />
               Edit Customer Profile
@@ -1156,12 +1158,13 @@ export default function CustomersPage() {
           </DialogHeader>
 
           {formError && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
+            <div className="shrink-0 mb-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
               {formError}
             </div>
           )}
 
-          <form onSubmit={handleUpdateCustomer} className="space-y-4 pt-2">
+          <form onSubmit={handleUpdateCustomer} className="flex-1 flex flex-col min-h-0 pt-2">
+            <div className="flex-1 overflow-y-auto pr-1 space-y-4">
             {/* Customer Photo Upload & Preview */}
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
               <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-blue-500/40 bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs">
@@ -1394,8 +1397,9 @@ export default function CustomersPage() {
                 />
               </div>
             </div>
+            </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <DialogFooter className="shrink-0 pt-4 border-t border-slate-100 dark:border-slate-800 mt-2">
               <Button
                 type="button"
                 variant="outline"

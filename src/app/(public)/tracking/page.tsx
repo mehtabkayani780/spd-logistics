@@ -16,48 +16,141 @@ function TrackingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const [query, setQuery] = useState(searchParams.get('id') || '');
+  const initialQuery = searchParams.get('id') || searchParams.get('query') || searchParams.get('trackingId') || '';
+  const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  const findLocalConsignment = (searchQuery: string) => {
+    if (typeof window === "undefined" || !searchQuery) return null;
+    const clean = searchQuery.trim().toUpperCase();
+    try {
+      // 1. Check spd_local_tracking
+      const rawTracking = localStorage.getItem("spd_local_tracking");
+      if (rawTracking) {
+        const trackingList: any[] = JSON.parse(rawTracking);
+        const match = Array.isArray(trackingList)
+          ? trackingList.find(
+              (b: any) =>
+                b.trackingId?.trim().toUpperCase() === clean ||
+                b.biltyNumber?.trim().toUpperCase() === clean ||
+                b.id?.trim().toUpperCase() === clean
+            )
+          : null;
+        if (match) return match;
+      }
+
+      // 2. Check spd_local_bilties
+      const rawBilties = localStorage.getItem("spd_local_bilties");
+      if (rawBilties) {
+        const biltiesList: any[] = JSON.parse(rawBilties);
+        const match = Array.isArray(biltiesList)
+          ? biltiesList.find(
+              (b: any) =>
+                b.trackingId?.trim().toUpperCase() === clean ||
+                b.biltyNumber?.trim().toUpperCase() === clean ||
+                b.id?.trim().toUpperCase() === clean
+            )
+          : null;
+        if (match) return match;
+      }
+    } catch (e) {
+      console.warn("Local storage consignment lookup error:", e);
+    }
+    return null;
+  };
+
+  const formatConsignmentForDisplay = (c: any) => {
+    return {
+      id: c.id,
+      trackingId: c.trackingId || c.biltyNumber,
+      biltyNumber: c.biltyNumber,
+      status: c.shipmentStatus || c.status || "BOOKED",
+      origin: c.origin || "Origin Terminal",
+      destination: c.destination || "Destination Drop",
+      warehouse: c.warehouse || "MAIN",
+      packageDetails: c.packageDetails || "Commercial Consignment",
+      quantity: c.quantity || 1,
+      weight: c.weight || 0,
+      senderName: c.senderName,
+      senderPhone: c.senderPhone,
+      receiverName: c.receiverName,
+      receiverPhone: c.receiverPhone,
+      deliveryDate: c.deliveryDate,
+      deliveryTime: c.deliveryTime,
+      createdAt: c.createdAt || new Date().toISOString(),
+      events:
+        Array.isArray(c.trackingEvents) && c.trackingEvents.length > 0
+          ? c.trackingEvents
+          : Array.isArray(c.events) && c.events.length > 0
+          ? c.events
+          : [
+              {
+                id: `te-${c.id || Date.now()}`,
+                status: c.shipmentStatus || c.status || "BOOKED",
+                location: `${c.origin || "Origin"} Dispatch Center`,
+                description: `Consignment registered with Tracking ID ${c.trackingId || c.biltyNumber}.`,
+                timestamp: c.createdAt || new Date().toISOString(),
+              },
+            ],
+    };
+  };
+
+  const handleSearch = async (e?: React.FormEvent, customQuery?: string) => {
     if (e) e.preventDefault();
-    if (!query.trim()) return;
+    const searchTerm = (customQuery !== undefined ? customQuery : query).trim();
+    if (!searchTerm) return;
 
     setLoading(true);
     setError('');
-    setResult(null);
     
     // Update URL without reload
     const newParams = new URLSearchParams(searchParams.toString());
-    newParams.set('id', query);
+    newParams.set('id', searchTerm);
     router.push(`/tracking?${newParams.toString()}`);
 
+    // Check local consignment first for instant response
+    const localMatch = findLocalConsignment(searchTerm);
+    if (localMatch) {
+      setResult(formatConsignmentForDisplay(localMatch));
+    }
+
     try {
-      const res = await fetch(`/api/tracking/${encodeURIComponent(query)}`);
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error('No shipment found with this tracking ID or Bilty Number.');
+      const res = await fetch(`/api/tracking/${encodeURIComponent(searchTerm)}`);
+      if (res.ok) {
+        const data = await res.json();
+        // If local match exists, merge or prioritize any updated local status
+        if (localMatch) {
+          setResult(formatConsignmentForDisplay({ ...data, ...localMatch }));
+        } else {
+          setResult(data);
         }
-        throw new Error('An error occurred while tracking the shipment.');
+      } else {
+        if (!localMatch) {
+          if (res.status === 404) {
+            throw new Error('No shipment found with this tracking ID or Bilty Number.');
+          }
+          throw new Error('An error occurred while tracking the shipment.');
+        }
       }
-      
-      const data = await res.json();
-      setResult(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to track shipment.');
+      if (!localMatch) {
+        setError(err.message || 'Failed to track shipment.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (query) {
-      handleSearch();
+    const qParam = searchParams.get('id') || searchParams.get('query') || searchParams.get('trackingId');
+    if (qParam) {
+      setQuery(qParam);
+      handleSearch(undefined, qParam);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   return (
     <div className="container max-w-4xl px-4 py-12 md:py-20 mx-auto">
