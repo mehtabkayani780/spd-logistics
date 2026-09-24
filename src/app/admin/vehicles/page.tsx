@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,10 +30,12 @@ import {
   AlertTriangle,
   Printer,
   Phone,
+  Edit,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function VehiclesPage() {
+  const router = useRouter();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -354,7 +357,7 @@ export default function VehiclesPage() {
           </p>
         </div>
         <Button
-          onClick={() => setAddModalOpen(true)}
+          onClick={() => router.push("/admin/vehicles/new")}
           className="w-full sm:w-auto bg-spd-blue hover:bg-spd-blueHover text-white font-bold text-xs rounded-xl shadow-md gap-2 h-10 px-4 shrink-0"
         >
           <Plus className="w-4 h-4" />
@@ -524,6 +527,15 @@ export default function VehiclesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => router.push(`/admin/vehicles/${v.id}/edit`)}
+                        className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg"
+                        title="Edit vehicle details"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => setDeleteVehicle(v)}
                         className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
                         title="Delete vehicle from fleet"
@@ -538,163 +550,6 @@ export default function VehiclesPage() {
           </Table>
         </div>
       )}
-
-      {/* ADD VEHICLE MODAL */}
-      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent className="max-w-2xl rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Truck className="w-5 h-5 text-spd-blue" />
-              Register New Fleet Vehicle
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Register commercial vehicle, set tonnage capacity, assign route, and link fleet driver.
-            </DialogDescription>
-          </DialogHeader>
-
-          {formError && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
-              {formError}
-            </div>
-          )}
-
-          <form onSubmit={handleCreateVehicle} className="space-y-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Vehicle Number / Registration Plate *
-                </Label>
-                <Input
-                  required
-                  placeholder="e.g. LES-8899 / KHI-4422"
-                  value={formData.vehicleNumber}
-                  onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Vehicle Category / Type
-                </Label>
-                <select
-                  value={formData.vehicleType}
-                  onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                >
-                  <option value="Heavy Truck (22-Wheeler)">Heavy Truck (22-Wheeler)</option>
-                  <option value="10-Wheeler Truck">10-Wheeler Truck</option>
-                  <option value="6-Wheeler Mazda">6-Wheeler Mazda</option>
-                  <option value="Container Trailer (40ft)">Container Trailer (40ft)</option>
-                  <option value="Flatbed Carrier">Flatbed Carrier</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Make & Model
-                </Label>
-                <Input
-                  placeholder="e.g. Hino 700 / Isuzu Giga"
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Cargo Capacity (Metric Tons)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 35"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Current Hub / Location
-                </Label>
-                <Input
-                  placeholder="Lahore Terminal Hub"
-                  value={formData.currentLocation}
-                  onChange={(e) => setFormData({ ...formData, currentLocation: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Designated Highway Route
-                </Label>
-                <Input
-                  placeholder="Lahore - Karachi Express Highway"
-                  value={formData.route}
-                  onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                  className="rounded-xl h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Assign Driver
-                </Label>
-                <select
-                  value={formData.driverId}
-                  onChange={(e) => setFormData({ ...formData, driverId: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                >
-                  <option value="">No Driver Assigned</option>
-                  {drivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} &bull; {d.phone || d.contact}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                  Fleet Status
-                </Label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                >
-                  <option value="AVAILABLE">Available</option>
-                  <option value="ASSIGNED">Assigned</option>
-                  <option value="ON_TRIP">On Trip</option>
-                  <option value="MAINTENANCE">Maintenance</option>
-                </select>
-              </div>
-            </div>
-
-            <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAddModalOpen(false)}
-                className="rounded-xl text-xs font-semibold"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="bg-spd-blue hover:bg-spd-blueHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                <span>Add Vehicle</span>
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* VEHICLE ACCOUNT & BILTY HISTORY MODAL */}
       <Dialog

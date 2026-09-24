@@ -223,6 +223,8 @@ model Consignment {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
+  challanId          String?
+  challan            Challan?        @relation(fields: [challanId], references: [id])
   customer       Customer?       @relation("Customer", fields: [customerId], references: [id])
   sender         Customer?       @relation("Sender", fields: [senderId], references: [id])
   receiver       Customer?       @relation("Receiver", fields: [receiverId], references: [id])
@@ -237,6 +239,7 @@ model Consignment {
   @@index([customerId])
   @@index([senderId])
   @@index([receiverId])
+  @@index([challanId])
   @@index([shipmentStatus])
   @@index([date])
 }
@@ -287,6 +290,7 @@ model Vehicle {
   driverId     String?
   driver       Driver?       @relation(fields: [driverId], references: [id])
   consignments Consignment[]
+  challans     Challan[]
 
   @@index([vehicleNumber])
   @@index([vehicleType])
@@ -316,11 +320,59 @@ model Driver {
   user         User?     @relation("DriverUser", fields: [userId], references: [id])
   vehicles     Vehicle[]
   consignments Consignment[]
+  challans     Challan[]
 
   @@index([name])
   @@index([phone])
   @@index([contact])
   @@index([status])
+}
+
+// ============================================
+// CHALLANS / TRIP SETUP
+// ============================================
+
+model Challan {
+  id                         String    @id @default(cuid())
+  challanNumber              String    @unique
+  date                       DateTime  @default(now())
+  time                       String?
+  truckNumber                String
+  vehicleId                  String?
+  driverId                   String?
+  driverName                 String?
+  driverPhone                String?
+  brokerName                 String?
+  routePermitNumber          String?
+  origin                     String
+  destination                String
+  warehouse                  String?   @default("LAHORE")
+  totalAmount                Float     @default(0)
+  deliveryCommissionPercent  Float     @default(0)
+  commissionDeduction        Float     @default(0)
+  labourCost                 Float     @default(0)
+  vehicleExpense             Float     @default(0)
+  otherExpenses              Float     @default(0)
+  estimatedProfit            Float     @default(0)
+  status                     String    @default("IN_TRANSIT")
+  arrivalDate                DateTime?
+  arrivalTime                String?
+  arrivalReceiver            String?
+  arrivalNotes               String?
+  deliveryNotes              String?
+  notes                      String?
+  createdById                String?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+
+  vehicle                    Vehicle?  @relation(fields: [vehicleId], references: [id])
+  driver                     Driver?   @relation(fields: [driverId], references: [id])
+  consignments               Consignment[]
+
+  @@index([challanNumber])
+  @@index([status])
+  @@index([warehouse])
+  @@index([date])
 }
 
 // ============================================

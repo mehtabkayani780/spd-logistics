@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -45,6 +46,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildWhatsAppUrl, getAdminToCustomerWhatsAppMessage } from "@/lib/whatsapp";
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -556,7 +558,7 @@ export default function CustomersPage() {
             <span>Export CSV</span>
           </Button>
           <Button
-            onClick={openAddModal}
+            onClick={() => router.push("/admin/customers/new")}
             className="w-full sm:w-auto bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -768,7 +770,7 @@ export default function CustomersPage() {
                         variant="ghost"
                         className="h-8 w-8 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
                         title="Edit Customer & Photo"
-                        onClick={() => openEditModal(c)}
+                        onClick={() => router.push(`/admin/customers/${c.id}/edit`)}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -802,350 +804,7 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* UNIFIED CUSTOMER MODAL (ADD & EDIT) */}
-      {isModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-6 flex items-start justify-center"
-          style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
-        >
-          <div className="relative w-full max-w-2xl my-4 sm:my-8 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-slate-800">
-            {/* Sticky Header */}
-            <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20">
-              <div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Building2 className={`w-5 h-5 ${editingCustomer ? "text-blue-600" : "text-spd-red"}`} />
-                  {editingCustomer ? "Edit Customer Profile" : "Register New Customer / Dealer"}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  {editingCustomer
-                    ? "Update customer profile, contact details and account parameters."
-                    : "Enter complete party details below to register customer & create portal login."}
-                </p>
-              </div>
-              <button 
-                type="button" 
-                onClick={closeModal}
-                className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-lg text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
 
-            {formError && (
-              <div className="mx-4 sm:mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmitModal} className="flex flex-col">
-              {/* Pure Scrollable Form Body */}
-              <div className="p-4 sm:p-6 space-y-4 bg-white dark:bg-slate-900">
-                {/* Customer Photo Upload Control */}
-                <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
-                  <div className={`w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 ${editingCustomer ? "border-blue-500/40" : "border-red-500/40"} bg-slate-200 dark:bg-slate-700 flex items-center justify-center relative shadow-xs`}>
-                    {customerPhotoPreview || customerForm.photo ? (
-                      <img
-                        src={customerPhotoPreview || customerForm.photo}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <Users className="w-10 h-10 text-slate-400" />
-                    )}
-                    {uploadingPhoto && (
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-1 text-center sm:text-left flex-1">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Customer Profile Photo
-                    </Label>
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-                      <input
-                        ref={customerFileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                        style={{ display: "none" }}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const err = validateImageFile(file);
-                          if (err) {
-                            setFormError(err);
-                            if (customerFileInputRef.current) customerFileInputRef.current.value = "";
-                            return;
-                          }
-                          setFormError("");
-                          setCustomerPhotoFile(file);
-                          setCustomerPhotoRemoved(false);
-                          const objectUrl = URL.createObjectURL(file);
-                          setCustomerPhotoPreview(objectUrl);
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => customerFileInputRef.current?.click()}
-                        className="h-8 rounded-xl text-xs font-bold gap-1.5 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
-                      >
-                        <Camera className={`w-3.5 h-3.5 ${editingCustomer ? "text-blue-600" : "text-red-600"}`} />
-                        <span>{customerPhotoPreview || customerForm.photo ? "Change Photo" : "Upload Photo"}</span>
-                      </Button>
-                      {(customerPhotoPreview || customerForm.photo) && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setCustomerPhotoFile(null);
-                            setCustomerPhotoPreview("");
-                            setCustomerPhotoRemoved(true);
-                            setCustomerForm({ ...customerForm, photo: "" });
-                            if (customerFileInputRef.current) customerFileInputRef.current.value = "";
-                          }}
-                          className="h-8 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remove</span>
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-slate-400">JPG, JPEG, PNG, WebP up to 5MB.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Customer / Dealer Name *
-                    </Label>
-                    <Input
-                      required
-                      placeholder="e.g. M. Tariq / Star Trading"
-                      value={customerForm.name}
-                      onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Company / Firm Name
-                    </Label>
-                    <Input
-                      placeholder="e.g. Star Goods & Trading Co."
-                      value={customerForm.companyName}
-                      onChange={(e) => setCustomerForm({ ...customerForm, companyName: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Phone Number *
-                    </Label>
-                    <Input
-                      required
-                      placeholder="03001234567"
-                      value={customerForm.phone}
-                      onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      WhatsApp Number
-                    </Label>
-                    <Input
-                      placeholder="03001234567"
-                      value={customerForm.whatsapp}
-                      onChange={(e) => setCustomerForm({ ...customerForm, whatsapp: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  {!editingCustomer ? (
-                    <>
-                      {/* Login Credentials created manually by Admin */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold uppercase text-spd-blue">
-                          Login Email *
-                        </Label>
-                        <Input
-                          required
-                          type="email"
-                          placeholder="dealer@company.com"
-                          value={customerForm.email}
-                          onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                          className="rounded-xl h-10 text-xs border-blue-200 dark:border-blue-900"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold uppercase text-spd-blue">
-                          Login Password *
-                        </Label>
-                        <Input
-                          required
-                          type="password"
-                          placeholder="Assign a secure password"
-                          value={customerForm.password}
-                          onChange={(e) => setCustomerForm({ ...customerForm, password: e.target.value })}
-                          className="rounded-xl h-10 text-xs border-blue-200 dark:border-blue-900"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                        Account Status
-                      </Label>
-                      <select
-                        value={customerForm.status}
-                        onChange={(e) => setCustomerForm({ ...customerForm, status: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                      >
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="INACTIVE">INACTIVE</option>
-                      </select>
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      CNIC / NTN Number
-                    </Label>
-                    <Input
-                      placeholder="35201-XXXXXXX-X"
-                      value={customerForm.cnic}
-                      onChange={(e) => setCustomerForm({ ...customerForm, cnic: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Assigned Warehouse Hub
-                    </Label>
-                    <select
-                      value={customerForm.warehouse}
-                      onChange={(e) => setCustomerForm({ ...customerForm, warehouse: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                    >
-                      <option value="LAHORE">Lahore Central Hub</option>
-                      <option value="KARACHI">Karachi South Hub</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      City
-                    </Label>
-                    <Input
-                      placeholder="Lahore / Karachi / Multan..."
-                      value={customerForm.city}
-                      onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Credit Limit (PKR)
-                    </Label>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 100000"
-                      value={customerForm.creditLimit}
-                      onChange={(e) => setCustomerForm({ ...customerForm, creditLimit: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  {!editingCustomer ? (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                        Opening Balance (PKR)
-                      </Label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={customerForm.openingBalance}
-                        onChange={(e) => setCustomerForm({ ...customerForm, openingBalance: e.target.value })}
-                        className="rounded-xl h-10 text-xs"
-                      />
-                    </div>
-                  ) : null}
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Business Reference / Notes
-                    </Label>
-                    <Input
-                      placeholder="Reference person or terms"
-                      value={customerForm.notes || customerForm.businessRef}
-                      onChange={(e) =>
-                        setCustomerForm({
-                          ...customerForm,
-                          notes: e.target.value,
-                          businessRef: e.target.value,
-                        })
-                      }
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                      Address
-                    </Label>
-                    <Input
-                      placeholder="Shop / office / godown address"
-                      value={customerForm.address}
-                      onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
-                      className="rounded-xl h-10 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Sticky Footer */}
-              <div className="p-4 bg-gray-50 dark:bg-slate-800/90 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3 sticky bottom-0 z-20">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={`px-6 py-2.5 rounded-xl text-white font-semibold shadow-md active:scale-95 transition-all text-xs flex items-center gap-2 disabled:opacity-50 ${
-                    editingCustomer ? "bg-blue-600 hover:bg-blue-700" : "bg-red-600 hover:bg-red-700"
-                  }`}
-                >
-                  {submitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : editingCustomer ? (
-                    <Edit className="w-4 h-4" />
-                  ) : (
-                    <Plus className="w-4 h-4" />
-                  )}
-                  <span>{editingCustomer ? "Save Changes" : "Create Customer"}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* MODAL 2: VIEW CUSTOMER LEDGER & DETAILS */}
       <Dialog open={!!viewCustomer} onOpenChange={() => setViewCustomer(null)}>

@@ -182,26 +182,58 @@ export const AUDIT_MODULES = {
   USER: 'USER',
 } as const;
 
+export interface NavItem {
+  title: string;
+  href: string;
+  icon: string;
+}
+
+export interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
 // Admin Sidebar Navigation
-export const ADMIN_NAV_ITEMS = [
-  { title: 'Dashboard', href: '/admin', icon: 'LayoutDashboard' },
-  { title: 'Customers', href: '/admin/customers', icon: 'Users' },
-  { title: 'Accounts', href: '/admin/accounts', icon: 'BookOpen' },
-  { title: 'Cash Books', href: '/admin/cash-books', icon: 'Wallet' },
-  { title: 'Bilty / Consignments', href: '/admin/bilty', icon: 'Package' },
-  { title: 'Tracking', href: '/admin/tracking', icon: 'MapPin' },
-  { title: 'Vehicles', href: '/admin/vehicles', icon: 'Truck' },
-  { title: 'Drivers', href: '/admin/drivers', icon: 'UserCog' },
-  { title: 'Payments', href: '/admin/payments', icon: 'CreditCard' },
-  { title: 'Receivables', href: '/admin/receivables', icon: 'ArrowDownLeft' },
-  { title: 'Payables', href: '/admin/payables', icon: 'ArrowUpRight' },
-  { title: 'Reports', href: '/admin/reports', icon: 'BarChart3' },
-  { title: 'Notifications', href: '/admin/notifications', icon: 'Bell' },
-  { title: 'AI Assistant', href: '/admin/ai-assistant', icon: 'Bot' },
-  { title: 'Users', href: '/admin/users', icon: 'Shield' },
-  { title: 'Settings', href: '/admin/settings', icon: 'Settings' },
-  { title: 'Audit Logs', href: '/admin/audit-logs', icon: 'ClipboardList' },
-] as const;
+export const ADMIN_NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'OPERATIONS',
+    items: [
+      { title: 'Dashboard', href: '/admin', icon: 'LayoutDashboard' },
+      { title: 'Customers', href: '/admin/customers', icon: 'Users' },
+      { title: 'Accounts', href: '/admin/accounts', icon: 'BookOpen' },
+      { title: 'Cash Books', href: '/admin/cash-books', icon: 'Wallet' },
+      { title: 'Bilty / Consignments', href: '/admin/bilty', icon: 'Package' },
+      { title: 'Tracking', href: '/admin/tracking', icon: 'MapPin' },
+      { title: 'Vehicles', href: '/admin/vehicles', icon: 'Truck' },
+      { title: 'Drivers', href: '/admin/drivers', icon: 'UserCog' },
+    ],
+  },
+  {
+    title: 'TRIP SETUP',
+    items: [
+      { title: 'Challan', href: '/admin/challan', icon: 'FileSpreadsheet' },
+      { title: 'Challan in Transit', href: '/admin/challan-in-transit', icon: 'Navigation' },
+      { title: 'Arrivals', href: '/admin/arrivals', icon: 'MapPin' },
+      { title: 'Delivery', href: '/admin/delivery', icon: 'CheckCircle2' },
+    ],
+  },
+  {
+    title: 'FINANCE & SYSTEM',
+    items: [
+      { title: 'Payments', href: '/admin/payments', icon: 'CreditCard' },
+      { title: 'Receivables', href: '/admin/receivables', icon: 'ArrowDownLeft' },
+      { title: 'Payables', href: '/admin/payables', icon: 'ArrowUpRight' },
+      { title: 'Reports', href: '/admin/reports', icon: 'BarChart3' },
+      { title: 'Notifications', href: '/admin/notifications', icon: 'Bell' },
+      { title: 'AI Assistant', href: '/admin/ai-assistant', icon: 'Bot' },
+      { title: 'Users', href: '/admin/users', icon: 'Shield' },
+      { title: 'Settings', href: '/admin/settings', icon: 'Settings' },
+      { title: 'Audit Logs', href: '/admin/audit-logs', icon: 'ClipboardList' },
+    ],
+  },
+];
+
+export const ADMIN_NAV_ITEMS: NavItem[] = ADMIN_NAV_SECTIONS.flatMap((s) => s.items);
 
 // Pagination defaults
 export const PAGINATION = {

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ADMIN_NAV_ITEMS } from "@/lib/constants";
+import { ADMIN_NAV_SECTIONS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
@@ -30,6 +30,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Navigation,
+  CheckCircle2,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -51,6 +53,8 @@ const iconMap: Record<string, React.ElementType> = {
   Shield,
   Settings,
   ClipboardList,
+  Navigation,
+  CheckCircle2,
 };
 
 interface SidebarProps {
@@ -167,30 +171,42 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 scrollbar-hide">
-          {ADMIN_NAV_ITEMS.map((item) => {
-            const Icon = iconMap[item.icon] || Package;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        <div className="flex-1 overflow-y-auto py-4 px-3 space-y-4 scrollbar-hide">
+          {ADMIN_NAV_SECTIONS.map((section, sIdx) => (
+            <div key={section.title || sIdx} className="space-y-1">
+              {!collapsed && (
+                <div className="px-3 py-1 text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">
+                  {section.title}
+                </div>
+              )}
+              {collapsed && sIdx > 0 && (
+                <div className="my-2 border-t border-slate-200 dark:border-slate-800" />
+              )}
+              {section.items.map((item) => {
+                const Icon = iconMap[item.icon] || Package;
+                const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href + "/"));
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 group",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                  collapsed && "justify-center px-0"
-                )}
-                title={collapsed ? item.title : undefined}
-                onClick={() => setMobileOpen?.(false)}
-              >
-                <Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-spd-red")} />
-                {!collapsed && <span>{item.title}</span>}
-              </Link>
-            );
-          })}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 group",
+                      isActive
+                        ? "bg-accent text-accent-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                      collapsed && "justify-center px-0"
+                    )}
+                    title={collapsed ? item.title : undefined}
+                    onClick={() => setMobileOpen?.(false)}
+                  >
+                    <Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-spd-red")} />
+                    {!collapsed && <span>{item.title}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         <div className="border-t p-3">

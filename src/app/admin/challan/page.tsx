@@ -1,0 +1,779 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  FileSpreadsheet,
+  Truck,
+  UserCog,
+  MapPin,
+  Calendar,
+  Wallet,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  Search,
+  Printer,
+  TrendingUp,
+  Package,
+  Layers,
+  ArrowRight,
+} from "lucide-react";
+import { FormSectionCard } from "@/components/shared/form-section-card";
+import { SearchableSelect } from "@/components/shared/searchable-select";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { PrintableChallan } from "@/components/challan/printable-challan";
+
+const PAKISTAN_CITIES = [
+  "Lahore",
+  "Karachi",
+  "Islamabad",
+  "Rawalpindi",
+  "Faisalabad",
+  "Multan",
+  "Peshawar",
+  "Quetta",
+  "Gujranwala",
+  "Sialkot",
+  "Hyderabad",
+  "Sukkur",
+  "Bahawalpur",
+  "Sargodha",
+  "Rahim Yar Khan",
+];
+
+export default function ChallanPage() {
+  const router = useRouter();
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const [availableBilties, setAvailableBilties] = useState<any[]>([]);
+  const [selectedBiltyIds, setSelectedBiltyIds] = useState<string[]>([]);
+
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+
+  // Search & Filter for left column
+  const [biltySearch, setBiltySearch] = useState("");
+  const [warehouseFilter, setWarehouseFilter] = useState("LAHORE");
+
+  // Printable Challan modal
+  const [printedChallan, setPrintedChallan] = useState<any>(null);
+
+  // Form State
+  const [challanData, setChallanData] = useState({
+    challanNumber: "",
+    date: new Date().toISOString().slice(0, 10),
+    warehouse: "LAHORE",
+    origin: "Lahore",
+    destination: "Karachi",
+
+    vehicleId: "",
+    truckNumber: "",
+    driverId: "",
+    driverName: "",
+    driverPhone: "",
+
+    truckFreight: "",
+    advancePaidToDriver: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [biltyRes, vehRes, drvRes] = await Promise.all([
+        fetch("/api/admin/bilty"),
+        fetch("/api/admin/vehicles"),
+        fetch("/api/admin/drivers"),
+      ]);
+
+      const biltyData = await biltyRes.json();
+      const vehData = await vehRes.json();
+      const drvData = await drvRes.json();
+
+      if (biltyData.consignments) {
+        // Filter bilties that are not already assigned to an active trip
+        const unassigned = biltyData.consignments.filter(
+          (b: any) =>
+            !b.challanId &&
+            b.shipmentStatus !== "DELIVERED" &&
+            b.shipmentStatus !== "DELETED"
+        );
+        setAvailableBilties(unassigned);
+      }
+
+      if (vehData.vehicles) setVehicles(vehData.vehicles);
+      if (drvData.drivers) setDrivers(drvData.drivers);
+
+      // Auto-suggest sequential Challan number
+      const year = new Date().getFullYear();
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      setChallanData((prev) => ({
+        ...prev,
+        challanNumber: `CHL-${year}-${randomSuffix}`,
+      }));
+    } catch (err) {
+      console.error("Error loading challan setup data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVehicleSelect = (vehicleId: string, meta?: any) => {
+    setChallanData((prev) => {
+      const veh = meta || vehicles.find((v) => v.id === vehicleId);
+      if (veh) {
+        let matchedDriverId = prev.driverId;
+        let matchedDriverName = prev.driverName;
+        let matchedDriverPhone = prev.driverPhone;
+
+        if (veh.driverId) {
+          matchedDriverId = veh.driverId;
+          const drv = drivers.find((d) => d.id === veh.driverId);
+          if (drv) {
+            matchedDriverName = drv.name;
+            matchedDriverPhone = drv.phone || drv.contact || "";
+          }
+        }
+        return {
+          ...prev,
+          vehicleId,
+          truckNumber: veh.vehicleNumber,
+          driverId: matchedDriverId,
+          driverName: matchedDriverName,
+          driverPhone: matchedDriverPhone,
+        };
+      }
+      return { ...prev, vehicleId, truckNumber: "" };
+    });
+  };
+
+  const handleDriverSelect = (driverId: string, meta?: any) => {
+    setChallanData((prev) => {
+      const drv = meta || drivers.find((d) => d.id === driverId);
+      return {
+        ...prev,
+        driverId,
+        driverName: drv ? drv.name : prev.driverName,
+        driverPhone: drv ? drv.phone || drv.contact || "" : prev.driverPhone,
+      };
+    });
+  };
+
+  // Filtered Bilties
+  const filteredBilties = availableBilties.filter((b) => {
+    if (warehouseFilter && b.warehouse && b.warehouse !== warehouseFilter) {
+      return false;
+    }
+    if (biltySearch.trim()) {
+      const s = biltySearch.toLowerCase();
+      const matchNo = b.biltyNumber?.toLowerCase().includes(s);
+      const matchSender = b.senderName?.toLowerCase().includes(s);
+      const matchReceiver = b.receiverName?.toLowerCase().includes(s);
+      const matchCity = b.destination?.toLowerCase().includes(s);
+      if (!matchNo && !matchSender && !matchReceiver && !matchCity) return false;
+    }
+    return true;
+  });
+
+  const toggleSelectBilty = (id: string) => {
+    setSelectedBiltyIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const visibleIds = filteredBilties.map((b) => b.id);
+    const allSelected = visibleIds.every((id) => selectedBiltyIds.includes(id));
+    if (allSelected) {
+      setSelectedBiltyIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedBiltyIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  // Calculations for Selected Bilties
+  const selectedBiltiesList = availableBilties.filter((b) =>
+    selectedBiltyIds.includes(b.id)
+  );
+  const totalSelectedWeight = selectedBiltiesList.reduce(
+    (sum, b) => sum + (b.weight || 0),
+    0
+  );
+  const totalGrossFreight = selectedBiltiesList.reduce(
+    (sum, b) => sum + (b.freight || 0),
+    0
+  );
+  const totalPackages = selectedBiltiesList.reduce(
+    (sum, b) => sum + (b.quantity || 1),
+    0
+  );
+
+  // Financial & Profit Calculations
+  const truckFreightCost = parseFloat(challanData.truckFreight) || 0;
+  const driverAdvancePaid = parseFloat(challanData.advancePaidToDriver) || 0;
+  const driverBalanceDue = Math.max(0, truckFreightCost - driverAdvancePaid);
+
+  const netTripProfit = totalGrossFreight - truckFreightCost;
+  const profitMargin =
+    totalGrossFreight > 0 ? (netTripProfit / totalGrossFreight) * 100 : 0;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+
+    if (selectedBiltyIds.length === 0) {
+      setFormError("Please select at least one Bilty from the warehouse list.");
+      return;
+    }
+    if (!challanData.truckNumber.trim()) {
+      setFormError("Truck / Vehicle is required.");
+      return;
+    }
+    if (!challanData.driverName.trim()) {
+      setFormError("Driver is required.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        ...challanData,
+        truckFreight: truckFreightCost,
+        advancePaidToDriver: driverAdvancePaid,
+        selectedBiltyIds,
+      };
+
+      const res = await fetch("/api/admin/challan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        throw new Error(result.error || "Failed to generate Challan");
+      }
+
+      setSuccessMsg(`Challan ${result.challan.challanNumber} generated successfully!`);
+      setPrintedChallan(result.challan);
+    } catch (err: any) {
+      setFormError(err.message || "Failed to generate Challan");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const vehicleOptions = vehicles.map((v) => ({
+    value: v.id,
+    label: `${v.vehicleNumber} (${v.type || "Truck"})`,
+    subLabel: `Capacity: ${v.capacity || "N/A"} Tons • Status: ${v.status}`,
+    meta: v,
+  }));
+
+  const driverOptions = drivers.map((d) => ({
+    value: d.id,
+    label: `${d.name} (${d.phone || d.contact || "No phone"})`,
+    subLabel: `CNIC: ${d.cnic || "N/A"} • Status: ${d.status}`,
+    meta: d,
+  }));
+
+  return (
+    <div className="space-y-6 pb-24">
+      {/* Printable Challan Modal */}
+      {printedChallan && (
+        <PrintableChallan
+          challan={printedChallan}
+          onClose={() => {
+            setPrintedChallan(null);
+            router.push("/admin/challan-in-transit");
+          }}
+        />
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Trip Setup
+            </span>
+            <span className="text-slate-300">/</span>
+            <span className="text-xs font-bold text-spd-blue">Dispatch Manifest</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+            <FileSpreadsheet className="w-7 h-7 text-spd-blue" />
+            Challan & Trip Manifest
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Group warehouse bilties onto long-haul trucks, assign drivers, calculate live trip profitability, and issue dispatch challans.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link href="/admin/challan-in-transit">
+            <Button variant="outline" className="rounded-xl text-xs font-bold gap-2">
+              <Truck className="w-4 h-4 text-emerald-600" />
+              <span>Challan in Transit</span>
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {formError && (
+        <div className="p-4 rounded-xl text-xs font-bold bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <span>{formError}</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-4 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* 2-COLUMN MAIN DESKTOP LAYOUT (Matching Reference) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ============================================================== */}
+        {/* LEFT COLUMN: SELECT WAREHOUSE BILTIES (7 Columns on Large)     */}
+        {/* ============================================================== */}
+        <div className="lg:col-span-7 space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+            {/* Header / Filter Toolbar */}
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-spd-red" />
+                  <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                    Available Warehouse Bilties
+                  </h2>
+                </div>
+                <span className="text-xs font-bold text-slate-500">
+                  {filteredBilties.length} Available
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <div className="relative flex-1 w-full">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search bilty #, shipper, receiver, city..."
+                    value={biltySearch}
+                    onChange={(e) => setBiltySearch(e.target.value)}
+                    className="pl-9 h-9 rounded-xl bg-white dark:bg-slate-900 text-xs w-full"
+                  />
+                </div>
+                <select
+                  value={warehouseFilter}
+                  onChange={(e) => setWarehouseFilter(e.target.value)}
+                  className="h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 w-full sm:w-auto"
+                >
+                  <option value="LAHORE">Lahore Hub</option>
+                  <option value="KARACHI">Karachi Hub</option>
+                  <option value="">All Warehouses</option>
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSelectAll}
+                  className="h-9 text-xs rounded-xl font-bold whitespace-nowrap w-full sm:w-auto"
+                >
+                  {filteredBilties.length > 0 &&
+                  filteredBilties.every((b) => selectedBiltyIds.includes(b.id))
+                    ? "Deselect All"
+                    : "Select All"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Bilties Selection Table */}
+            <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-[10px] font-bold sticky top-0 z-10 shadow-xs">
+                  <tr>
+                    <th className="p-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredBilties.length > 0 &&
+                          filteredBilties.every((b) => selectedBiltyIds.includes(b.id))
+                        }
+                        onChange={toggleSelectAll}
+                        className="rounded accent-spd-red w-4 h-4 cursor-pointer"
+                      />
+                    </th>
+                    <th className="p-3">Bilty #</th>
+                    <th className="p-3">Route</th>
+                    <th className="p-3">Shipper / Receiver</th>
+                    <th className="p-3 text-right">Weight</th>
+                    <th className="p-3 text-right">Freight</th>
+                    <th className="p-3 text-center">Pay Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredBilties.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-400">
+                        No consignments waiting in warehouse.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredBilties.map((b) => {
+                      const isSelected = selectedBiltyIds.includes(b.id);
+                      return (
+                        <tr
+                          key={b.id}
+                          onClick={() => toggleSelectBilty(b.id)}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected
+                              ? "bg-red-50/70 dark:bg-red-950/30"
+                              : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                          }`}
+                        >
+                          <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectBilty(b.id)}
+                              className="rounded accent-spd-red w-4 h-4 cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-3">
+                            <span className="font-bold font-mono text-red-600 block">
+                              {b.biltyNumber}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {b.trackingId}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className="font-semibold block text-slate-800 dark:text-slate-200">
+                              {b.origin} → {b.destination}
+                            </span>
+                            <span className="text-[10px] text-slate-400">{b.warehouse} Hub</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="font-semibold block text-slate-800 dark:text-slate-200">
+                              {b.senderName}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block">
+                              To: {b.receiverName}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right font-mono font-semibold">
+                            {b.weight ? `${b.weight} kg` : "—"}
+                          </td>
+                          <td className="p-3 text-right font-mono font-black text-slate-900 dark:text-white">
+                            {formatCurrency(b.freight || 0)}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span
+                              className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                b.remainingBalance <= 0
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                              }`}
+                            >
+                              {b.remainingBalance <= 0 ? "PAID" : "TO-PAY"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Sticky Counter Summary Card (Matching Reference Bottom Bar) */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Bilties Selected
+                </span>
+                <span className="text-xl font-black text-white">
+                  {selectedBiltyIds.length} Consignments
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Total Payload Weight
+                </span>
+                <span className="text-xl font-black text-white font-mono">
+                  {totalSelectedWeight.toLocaleString()} kg
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Total Bilty Freight
+                </span>
+                <span className="text-xl font-black text-emerald-400 font-mono">
+                  {formatCurrency(totalGrossFreight)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* RIGHT COLUMN: CHALLAN SETUP & REAL-TIME PROFIT CALCULATOR     */}
+        {/* ============================================================== */}
+        <div className="lg:col-span-5 space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Challan Trip Parameters */}
+            <FormSectionCard
+              title="Trip Dispatch Parameters"
+              badge="Setup"
+              description="Corridor route, origin warehouse, and sequential Challan ID"
+            >
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Challan # *
+                </Label>
+                <Input
+                  required
+                  value={challanData.challanNumber}
+                  onChange={(e) =>
+                    setChallanData({ ...challanData, challanNumber: e.target.value.toUpperCase() })
+                  }
+                  className="rounded-xl h-10 text-xs font-mono uppercase font-black"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Dispatch Date *
+                </Label>
+                <Input
+                  type="date"
+                  required
+                  value={challanData.date}
+                  onChange={(e) => setChallanData({ ...challanData, date: e.target.value })}
+                  className="rounded-xl h-10 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Origin Terminal *
+                </Label>
+                <select
+                  value={challanData.origin}
+                  onChange={(e) => setChallanData({ ...challanData, origin: e.target.value })}
+                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                >
+                  {PAKISTAN_CITIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Destination Terminal *
+                </Label>
+                <select
+                  value={challanData.destination}
+                  onChange={(e) => setChallanData({ ...challanData, destination: e.target.value })}
+                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                >
+                  {PAKISTAN_CITIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </FormSectionCard>
+
+            {/* Vehicle & Driver Assignment */}
+            <FormSectionCard
+              title="Fleet & Personnel Assignment"
+              badge="Fleet"
+              description="Select truck and long-haul driver with real-time phone linkage"
+            >
+              <div className="col-span-1 sm:col-span-2 space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Select Fleet Truck / Vehicle *
+                </Label>
+                <SearchableSelect
+                  options={vehicleOptions}
+                  value={challanData.vehicleId}
+                  onChange={handleVehicleSelect}
+                  placeholder=""
+                  emptyMessage="No available vehicles"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Assigned Driver *
+                </Label>
+                <SearchableSelect
+                  options={driverOptions}
+                  value={challanData.driverId}
+                  onChange={handleDriverSelect}
+                  placeholder=""
+                  emptyMessage="No available drivers"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Driver Phone Number
+                </Label>
+                <Input
+                  value={challanData.driverPhone}
+                  onChange={(e) =>
+                    setChallanData({ ...challanData, driverPhone: e.target.value })
+                  }
+                  className="rounded-xl h-10 text-xs font-mono"
+                />
+              </div>
+            </FormSectionCard>
+
+            {/* Trip Expenses & Profit Calculator (Matching Reference Formula) */}
+            <FormSectionCard
+              title="Trip Rate & Profit Calculation"
+              badge="Profit"
+              description="Real-time profit calculator: Net Profit = Total Freight - Truck Cost"
+            >
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Truck Freight / Rate (PKR) *
+                </Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={challanData.truckFreight}
+                  onChange={(e) =>
+                    setChallanData({ ...challanData, truckFreight: e.target.value })
+                  }
+                  className="rounded-xl h-10 text-xs font-mono font-bold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Driver Advance Paid (PKR)
+                </Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={challanData.advancePaidToDriver}
+                  onChange={(e) =>
+                    setChallanData({ ...challanData, advancePaidToDriver: e.target.value })
+                  }
+                  className="rounded-xl h-10 text-xs font-mono"
+                />
+              </div>
+
+              {/* REAL-TIME PROFIT DASHBOARD */}
+              <div className="col-span-1 sm:col-span-2 p-4 rounded-xl bg-slate-900 text-white space-y-3 mt-1">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-300">
+                      Real-Time Profit Calculator
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      netTripProfit >= 0
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-red-500/20 text-red-300"
+                    }`}
+                  >
+                    {profitMargin.toFixed(1)}% Margin
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Gross Customer Freight:</span>
+                    <span className="font-mono text-slate-200">
+                      {formatCurrency(totalGrossFreight)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Truck Transport Cost:</span>
+                    <span className="font-mono text-red-300">
+                      - {formatCurrency(truckFreightCost)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Driver Advance Paid:</span>
+                    <span className="font-mono text-slate-200">
+                      {formatCurrency(driverAdvancePaid)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Driver Balance Payable:</span>
+                    <span className="font-mono text-amber-300">
+                      {formatCurrency(driverBalanceDue)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Net Estimated Profit:
+                  </span>
+                  <span
+                    className={`text-xl font-black font-mono ${
+                      netTripProfit >= 0 ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {formatCurrency(netTripProfit)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="col-span-1 sm:col-span-2 space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                  Dispatch Notes
+                </Label>
+                <Input
+                  value={challanData.notes}
+                  onChange={(e) => setChallanData({ ...challanData, notes: e.target.value })}
+                  className="rounded-xl h-10 text-xs"
+                />
+              </div>
+            </FormSectionCard>
+
+            {/* Action Button */}
+            <Button
+              type="submit"
+              disabled={submitting || selectedBiltyIds.length === 0}
+              className="w-full bg-spd-blue hover:bg-spd-blueHover text-white font-black text-sm rounded-xl shadow-lg gap-2 h-12"
+            >
+              {submitting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-5 h-5" />
+              )}
+              <span>Generate & Dispatch Challan ({selectedBiltyIds.length} Bilties)</span>
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

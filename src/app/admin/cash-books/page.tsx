@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function CashBooksPage() {
+  const router = useRouter();
   const [cashBooks, setCashBooks] = useState<any[]>([]);
   const [selectedBook, setSelectedBook] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -617,7 +619,7 @@ export default function CashBooksPage() {
             )}
           </Button>
           <Button
-            onClick={() => setCreateBookOpen(true)}
+            onClick={() => router.push("/admin/cash-books/new")}
             variant="outline"
             className="w-full sm:w-auto rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold gap-2"
           >
@@ -905,91 +907,7 @@ export default function CashBooksPage() {
         </div>
       )}
 
-      {/* MODAL 1: CREATE CASH BOOK */}
-      <Dialog open={createBookOpen} onOpenChange={setCreateBookOpen}>
-        <DialogContent className="max-w-md rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-spd-red" />
-              Add New Cash Book
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Create an isolated operating cash book for regional stations or offices.
-            </DialogDescription>
-          </DialogHeader>
 
-          <form onSubmit={handleCreateBook} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                Book Title *
-              </Label>
-              <Input
-                required
-                placeholder="e.g. Hammad Cash Book"
-                value={newBookData.name}
-                onChange={(e) => setNewBookData({ ...newBookData, name: e.target.value })}
-                className="rounded-xl h-10 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                City / Station *
-              </Label>
-              <Input
-                required
-                placeholder="e.g. Islamabad / Multan / Faisalabad"
-                value={newBookData.city}
-                onChange={(e) => setNewBookData({ ...newBookData, city: e.target.value })}
-                className="rounded-xl h-10 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                Initial Opening Balance (PKR)
-              </Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={newBookData.openingBalance}
-                onChange={(e) => setNewBookData({ ...newBookData, openingBalance: e.target.value })}
-                className="rounded-xl h-10 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
-                Description
-              </Label>
-              <Input
-                placeholder="Operating terminal cash flow"
-                value={newBookData.description}
-                onChange={(e) => setNewBookData({ ...newBookData, description: e.target.value })}
-                className="rounded-xl h-10 text-xs"
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCreateBookOpen(false)}
-                className="rounded-xl text-xs font-semibold"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="bg-spd-red hover:bg-spd-redHover text-white font-bold text-xs rounded-xl shadow-md gap-2"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Cash Book"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* MODAL 2: ADD TRANSACTION */}
       <Dialog open={addTxOpen} onOpenChange={setAddTxOpen}>
